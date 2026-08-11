@@ -1,0 +1,97 @@
+datasource db {
+  provider = "sqlite"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("ADMIN")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Lead {
+  id             String   @id @default(cuid())
+  name           String
+  phone          String
+  email          String?
+  loanType       String
+  employmentType String?
+  loanAmount     String?
+  city           String?
+  source         String   @default("Website")
+  status         String   @default("New")
+  notes          String?
+  followUpDate   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model BlogCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  blogs     Blog[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Blog {
+  id              String        @id @default(cuid())
+  title           String
+  slug            String        @unique
+  content         String
+  excerpt         String?
+  featuredImage   String?
+  tags            String?
+  author          String        @default("Nilesh Kute")
+  seoTitle        String?
+  metaDescription String?
+  published       Boolean       @default(false)
+  categoryId      String?
+  category        BlogCategory? @relation(fields: [categoryId], references: [id])
+  publishedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model FAQ {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Testimonial {
+  id         String   @id @default(cuid())
+  name       String
+  rating     Int      @default(5)
+  testimonial String
+  loanType   String?
+  photo      String?
+  date       DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model InterestRate {
+  id                   String   @id @default(cuid())
+  lender               String
+  loanType             String
+  interestRate         String
+  processingFee        String?
+  applicableConditions String?
+  notes                String?
+  lastUpdated          DateTime @default(now())
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}

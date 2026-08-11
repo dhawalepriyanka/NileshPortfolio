@@ -1,0 +1,125 @@
+:root {
+  --primary-navy: #071A3D;
+  --secondary-navy: #0B234F;
+  --gold: #D9A62E;
+  --light-bg: #F7F8FA;
+  --dark-text: #172033;
+  --white: #FFFFFF;
+  
+  --font-inter: 'Inter', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-inter);
+  background-color: var(--light-bg);
+  color: var(--dark-text);
+  line-height: 1.6;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 0.5em;
+  color: var(--primary-navy);
+}
+
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+button, .btn {
+  display: inline-block;
+  padding: 12px 24px;
+  background-color: var(--gold);
+  color: var(--white);
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+button:hover, .btn:hover {
+  background-color: #c49428;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.btn-secondary {
+  background-color: var(--primary-navy);
+}
+
+.btn-secondary:hover {
+  background-color: var(--secondary-navy);
+}
+
+.section {
+  padding: 80px 0;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.mb-4 {
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+  body {
+    padding-bottom: 60px; /* Space for StickyMobileCTA bar */
+  }
+  .container {
+    padding: 0 15px;
+  }
+  .section {
+    padding: 40px 0;
+  }
+}
+
+/* Skeleton Loading Shimmer */
+.skeleton {
+  background: #e2e8f0;
+  background: linear-gradient(110deg, #eceff1 8%, #f5f7f8 18%, #eceff1 33%);
+  border-radius: 6px;
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+@keyframes shimmer {
+  to {
+    background-position-x: -200%;
+  }
+}
+
+/* Spinner loading indicator */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 0.8s ease-in-out infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

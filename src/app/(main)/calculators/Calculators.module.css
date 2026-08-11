@@ -1,0 +1,24 @@
+.main { width: 100%; }
+
+.hero {
+  background-color: var(--primary-navy);
+  color: var(--white);
+  padding: 70px 0 50px;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 10px;
+  color: var(--white);
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  color: rgba(255,255,255,0.8);
+}
+
+.calcSection {
+  background-color: var(--light-bg);
+  padding-bottom: 60px;
+}

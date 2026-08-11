@@ -1,0 +1,76 @@
+.main { width: 100%; }
+
+.hero {
+  background-color: var(--primary-navy);
+  color: var(--white);
+  padding: 70px 0 50px;
+}
+.title { font-size: 2.5rem; font-weight: 800; margin-bottom: 10px; color: var(--white); }
+.subtitle { font-size: 1.1rem; color: rgba(255,255,255,0.8); }
+
+.contentSection { padding: 60px 0; background: var(--light-bg); }
+
+.notice {
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  padding: 15px 20px;
+  border-radius: 8px;
+  margin-bottom: 40px;
+  color: #795548;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 30px;
+  margin-bottom: 50px;
+}
+
+.card {
+  background: var(--white);
+  border-radius: 8px;
+  padding: 30px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  border-top: 4px solid var(--gold);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 25px;
+}
+.cardIcon { font-size: 2rem; }
+.cardHeader h2 { font-size: 1.3rem; color: var(--primary-navy); margin: 0; }
+
+.docList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.docList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.95rem;
+  color: #444;
+  line-height: 1.4;
+}
+.check {
+  color: var(--gold);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.ctaBanner {
+  background: var(--primary-navy);
+  color: var(--white);
+  padding: 40px;
+  border-radius: 8px;
+  text-align: center;
+}
+.ctaBanner h3 { color: var(--white); font-size: 1.5rem; margin-bottom: 10px; }
+.ctaBanner p { color: rgba(255,255,255,0.8); margin-bottom: 25px; }

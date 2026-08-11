@@ -1,0 +1,62 @@
+.main { width: 100%; }
+
+.hero {
+  background-color: var(--primary-navy);
+  color: var(--white);
+  padding: 70px 0 50px;
+}
+.title { font-size: 2.5rem; font-weight: 800; margin-bottom: 10px; color: var(--white); }
+.subtitle { font-size: 1.1rem; color: rgba(255,255,255,0.8); }
+
+.contentSection { padding: 60px 0; background: var(--light-bg); }
+
+.scoreBar {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 50px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+.scoreBand {
+  padding: 15px 10px;
+  text-align: center;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.scoreBand span { font-weight: 700; font-size: 0.9rem; }
+.scoreBand small { font-size: 0.75rem; opacity: 0.9; }
+
+.sections { display: flex; flex-direction: column; gap: 25px; margin-bottom: 50px; }
+
+.sectionCard {
+  background: var(--white);
+  border-radius: 8px;
+  padding: 30px;
+  display: flex;
+  gap: 20px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  border-left: 4px solid var(--gold);
+}
+.sectionIcon { font-size: 2rem; flex-shrink: 0; }
+.sectionContent { flex: 1; }
+.sectionTitle { font-size: 1.3rem; color: var(--primary-navy); margin-bottom: 10px; }
+.sectionText { color: #555; line-height: 1.8; }
+
+.ctaBanner {
+  background: var(--primary-navy);
+  color: var(--white);
+  padding: 40px;
+  border-radius: 8px;
+  text-align: center;
+}
+.ctaBanner h3 { color: var(--white); font-size: 1.5rem; margin-bottom: 10px; }
+.ctaBanner p { color: rgba(255,255,255,0.8); margin-bottom: 25px; }
+.ctaButtons { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
+
+@media (max-width: 768px) {
+  .sectionCard { flex-direction: column; }
+  .scoreBar { flex-direction: column; }
+  .scoreBand { flex-direction: row; justify-content: center; gap: 10px; }
+}

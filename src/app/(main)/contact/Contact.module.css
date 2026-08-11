@@ -1,0 +1,97 @@
+.main {
+  width: 100%;
+}
+
+.contactHero {
+  background-color: var(--primary-navy);
+  color: var(--white);
+  padding: 60px 0;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.contactInfoSection {
+  padding: 60px 0;
+  background-color: var(--light-bg);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 30px;
+}
+
+.infoCard {
+  background: var(--white);
+  padding: 30px;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  transition: transform 0.3s;
+}
+
+.infoCard:hover {
+  transform: translateY(-5px);
+}
+
+.icon {
+  font-size: 2.5rem;
+  margin-bottom: 15px;
+}
+
+.infoCard h3 {
+  color: var(--primary-navy);
+  margin-bottom: 10px;
+}
+
+.infoCard p {
+  color: #666;
+  font-size: 0.95rem;
+  margin-bottom: 20px;
+}
+
+.link {
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 1.1rem;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.linkStatic {
+  color: var(--primary-navy);
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.applyBanner {
+  background: var(--primary-navy);
+  color: var(--white);
+  padding: 40px;
+  border-radius: 8px;
+  text-align: center;
+  margin-top: 40px;
+}
+
+.applyBanner h3 {
+  color: var(--white);
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+}
+
+.applyBanner p {
+  color: rgba(255,255,255,0.8);
+  margin-bottom: 25px;
+}

@@ -1,0 +1,107 @@
+.calculatorWrapper {
+  display: flex;
+  gap: 40px;
+  background: var(--white);
+  padding: 40px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  border-top: 4px solid var(--primary-navy);
+}
+
+.inputSection {
+  flex: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.resultSection {
+  flex: 2;
+}
+
+.inputGroup label {
+  display: block;
+  font-weight: 600;
+  color: var(--primary-navy);
+  margin-bottom: 10px;
+}
+
+.rangeWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.numInput {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--primary-navy);
+  width: 150px;
+}
+
+.rangeInput {
+  width: 100%;
+  accent-color: var(--gold);
+}
+
+.resultCard {
+  background-color: var(--light-bg);
+  padding: 30px;
+  border-radius: 8px;
+  text-align: center;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.resultCard h4 {
+  color: var(--primary-navy);
+  margin-bottom: 15px;
+}
+
+.resultMain {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--gold);
+  margin-bottom: 30px;
+}
+
+.resultSub {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.subItem {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+.ctaBox {
+  margin-top: auto;
+}
+
+.ctaBox p {
+  font-size: 0.9rem;
+  margin-bottom: 15px;
+}
+
+.ctaButtons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .calculatorWrapper {
+    flex-direction: column;
+    padding: 20px;
+  }
+}

@@ -1,0 +1,227 @@
+.header {
+  position: sticky;
+  top: 0;
+  background-color: var(--white);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  z-index: 1000;
+  width: 100%;
+}
+
+.container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 20px;
+}
+
+.logo {
+  display: flex;
+  flex-direction: column;
+}
+
+.logoText {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--primary-navy);
+  letter-spacing: 0.5px;
+}
+
+.logoSubText {
+  font-size: 0.75rem;
+  color: var(--gold);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.desktopNav {
+  display: none;
+}
+
+.navLinks {
+  list-style: none;
+  display: flex;
+  gap: 20px;
+}
+
+.navLink {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--dark-text);
+  transition: color 0.2s ease;
+}
+
+.navLink:hover, .navLink.active {
+  color: var(--gold);
+}
+
+.headerCta {
+  display: none;
+  gap: 12px;
+  align-items: center;
+}
+
+.whatsappBtn {
+  color: #25D366;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: opacity 0.2s;
+}
+
+.whatsappBtn:hover {
+  opacity: 0.8;
+}
+
+.applyBtn {
+  background-color: var(--gold);
+  color: var(--white);
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.applyBtn:hover {
+  background-color: #c49428;
+}
+
+.hamburger {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 26px;
+  height: 19px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  z-index: 1001;
+  padding: 0;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.bar {
+  width: 100%;
+  height: 3px;
+  background-color: var(--primary-navy);
+  border-radius: 3px;
+  transition: all 0.3s ease;
+}
+
+.barOpen1 {
+  transform: translateY(8px) rotate(45deg);
+}
+
+.barOpen2 {
+  opacity: 0;
+}
+
+.barOpen3 {
+  transform: translateY(-8px) rotate(-45deg);
+}
+
+.mobileNav {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background-color: var(--white);
+  box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+  padding: 20px;
+  display: none;
+  flex-direction: column;
+  transform-origin: top;
+  animation: slideDown 0.3s ease;
+  z-index: 1000;
+}
+
+.mobileNavOpen {
+  display: flex;
+}
+
+.mobileNavLinks {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobileNavLink {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--primary-navy);
+  display: block;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.mobileNavLink.active {
+  color: var(--gold);
+}
+
+.mobileCtaWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+  border-bottom: none;
+}
+
+.mobileWhatsappBtn {
+  background-color: #25D366;
+  color: var(--white);
+  text-align: center;
+  padding: 12px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.mobileApplyBtn {
+  background-color: var(--primary-navy);
+  color: var(--white);
+  text-align: center;
+  padding: 12px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: scaleY(0);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@media (min-width: 600px) {
+  .headerCta {
+    display: flex;
+  }
+}
+
+@media (min-width: 992px) {
+  .logoText {
+    font-size: 1.5rem;
+  }
+  .logoSubText {
+    font-size: 0.8rem;
+  }
+  .hamburger {
+    display: none;
+  }
+  .desktopNav {
+    display: block;
+  }
+  .mobileNav {
+    display: none !important;
+  }
+}

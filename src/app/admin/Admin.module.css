@@ -1,0 +1,44 @@
+.adminContainer {
+  width: 100%;
+}
+
+.tabNav {
+  display: flex;
+  gap: 10px;
+  border-bottom: 2px solid #E2E8F0;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
+.tabBtn {
+  padding: 12px 20px;
+  background: transparent;
+  color: #475569;
+  border: none !important;
+  border-bottom: 3px solid transparent !important;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer !important;
+  border-radius: 4px 4px 0 0;
+  transition: all 0.2s ease;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.tabBtn:hover {
+  background: #f1f5f9 !important;
+  color: #071A3D !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.tabBtnActive {
+  background: #071A3D !important;
+  color: #D9A62E !important;
+  border-bottom: 3px solid #D9A62E !important;
+}
+
+.tabBtnActive:hover {
+  background: #071A3D !important;
+  color: #D9A62E !important;
+}

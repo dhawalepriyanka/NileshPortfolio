@@ -1,0 +1,371 @@
+.main {
+  width: 100%;
+}
+
+.heroSection {
+  background-color: var(--primary-navy);
+  color: var(--white);
+  padding: 80px 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.heroContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+}
+
+.heroContent {
+  flex: 1;
+  max-width: 600px;
+}
+
+.experienceBadge {
+  display: inline-block;
+  background-color: rgba(217, 166, 46, 0.2);
+  color: var(--gold);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  border: 1px solid var(--gold);
+}
+
+.heroTitle {
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 20px;
+  color: var(--white);
+}
+
+.heroDesc {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 30px;
+}
+
+.trustPoints {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 40px;
+}
+
+.trustPoints li {
+  font-weight: 600;
+  color: var(--white);
+}
+
+.heroCta {
+  display: flex;
+  gap: 20px;
+}
+
+.primaryBtn {
+  background-color: var(--gold);
+  color: var(--white);
+  padding: 14px 28px;
+  border-radius: 4px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.primaryBtn:hover {
+  background-color: #c49428;
+  transform: translateY(-2px);
+}
+
+.secondaryBtn {
+  background-color: transparent;
+  color: var(--white);
+  padding: 14px 28px;
+  border-radius: 4px;
+  font-weight: 600;
+  border: 2px solid var(--white);
+  transition: all 0.3s;
+}
+
+.secondaryBtn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.heroImageWrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.imageDecor {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(217, 166, 46, 0.2) 0%, rgba(7, 26, 61, 0) 70%);
+  z-index: 1;
+}
+
+.heroImage {
+  position: relative;
+  z-index: 2;
+  border-radius: 8px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+  object-fit: cover;
+  max-width: 100%;
+  height: auto;
+}
+
+.sectionLight {
+  background-color: var(--light-bg);
+  padding: 80px 0;
+}
+
+.sectionDark {
+  background-color: var(--secondary-navy);
+  color: var(--white);
+  padding: 80px 0;
+}
+
+.grid3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+}
+
+.grid4 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background: var(--white);
+  padding: 30px;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  transition: transform 0.3s;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+}
+
+.iconPlaceholder {
+  font-size: 2.5rem;
+  margin-bottom: 15px;
+}
+
+.solutionList {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.solutionItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 30px;
+  background-color: var(--white);
+  border-radius: 8px;
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  border-left: 4px solid var(--gold);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.solutionItem:hover {
+  transform: translateX(5px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+}
+
+.arrow {
+  color: var(--primary-navy);
+}
+
+.serviceCard {
+  background: rgba(255,255,255,0.05);
+  padding: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.serviceCard h3 {
+  color: var(--gold);
+  font-size: 1.2rem;
+  margin-bottom: 20px;
+}
+
+.serviceCta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.serviceCta a {
+  color: var(--white);
+  font-size: 0.9rem;
+}
+
+.applyText {
+  color: var(--gold) !important;
+  font-weight: 600;
+}
+
+.reasonCard {
+  background: var(--white);
+  padding: 20px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  text-align: left;
+}
+
+.checkIcon {
+  background: var(--gold);
+  color: var(--white);
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: bold;
+}
+
+.processSteps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.stepCard {
+  background: var(--white);
+  padding: 25px;
+  border-radius: 8px;
+  position: relative;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+.stepNum {
+  font-size: 3rem;
+  font-weight: 800;
+  color: rgba(7, 26, 61, 0.05);
+  position: absolute;
+  top: 10px;
+  right: 20px;
+}
+
+.disclaimerSmall {
+  font-size: 0.8rem;
+  color: #666;
+  text-align: center;
+  margin-top: 30px;
+}
+
+.splitSection {
+  display: flex;
+  gap: 40px;
+}
+
+.splitContent {
+  flex: 1;
+  background: var(--white);
+  padding: 40px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  border-top: 4px solid var(--gold);
+}
+
+.splitContentAlt {
+  flex: 1;
+  background: #fcfcfc;
+  padding: 40px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  border-top: 4px solid var(--primary-navy);
+}
+
+.checkList, .bulletList {
+  list-style: none;
+  margin: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bulletList {
+  list-style-type: disc;
+  padding-left: 20px;
+}
+
+@media (max-width: 992px) {
+  .heroContainer {
+    flex-direction: column;
+    text-align: center;
+  }
+  .heroContent {
+    max-width: 100%;
+  }
+  .trustPoints {
+    text-align: left;
+    max-width: 400px;
+    margin: 0 auto 40px;
+  }
+  .heroCta {
+    justify-content: center;
+  }
+  .splitSection {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 768px) {
+  .heroSection {
+    padding: 40px 15px;
+  }
+  .heroTitle {
+    font-size: 1.85rem;
+    line-height: 1.25;
+  }
+  .heroDesc {
+    font-size: 0.95rem;
+    margin-bottom: 20px;
+  }
+  .trustPoints {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    font-size: 0.85rem;
+    margin-bottom: 25px;
+  }
+  .heroCta {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .primaryBtn, .secondaryBtn {
+    width: 100%;
+    text-align: center;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+  }
+  .splitContent, .splitContentAlt {
+    padding: 20px;
+  }
+  .solutionItem {
+    padding: 15px 20px;
+    font-size: 0.95rem;
+  }
+}
