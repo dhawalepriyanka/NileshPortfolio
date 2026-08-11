@@ -1,13 +1,23 @@
 const Database = require("better-sqlite3");
 import path from "path";
-
-const dbPath = path.join(process.cwd(), "prisma", "dev.db");
+import fs from "fs";
 
 let db;
 
 function getDb() {
   if (!db) {
-    db = new Database(dbPath);
+    try {
+      const dbDir = path.join(process.cwd(), "prisma");
+      if (!fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true });
+      }
+      const dbPath = path.join(dbDir, "dev.db");
+      db = new Database(dbPath);
+    } catch (e) {
+      console.warn("Falling back to in-memory database for Vercel deployment:", e.message);
+      db = new Database(":memory:");
+    }
+
     db.exec(`
       CREATE TABLE IF NOT EXISTS Lead (
         id TEXT PRIMARY KEY,
