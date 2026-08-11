@@ -432,7 +432,8 @@ export default function AdminDashboard() {
 
       {/* Admin Tab Navigation */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", flexWrap: "wrap", gap: "15px", borderBottom: "2px solid #E2E8F0", paddingBottom: "10px" }}>
-        <div className={styles.tabNav} style={{ borderBottom: "none", marginBottom: 0 }}>
+        {/* Desktop Tab Navigation */}
+        <div className={styles.desktopTabNav}>
           {[
             { id: "leads", label: "📊 Lead Management", count: leads.length },
             { id: "blogs", label: "📝 Blog Management", count: blogs.length },
@@ -450,6 +451,22 @@ export default function AdminDashboard() {
               {tab.label} {tab.count !== undefined && `(${tab.count})`}
             </button>
           ))}
+        </div>
+
+        {/* Mobile Dropdown Navigation */}
+        <div className={styles.mobileTabSelectWrapper}>
+          <select
+            value={activeTab}
+            onChange={(e) => setActiveTab(e.target.value)}
+            className={styles.mobileTabSelect}
+          >
+            <option value="leads">📊 Lead Management ({leads.length})</option>
+            <option value="blogs">📝 Blog Management ({blogs.length})</option>
+            <option value="images">🖼️ Image Upload ({images.length})</option>
+            <option value="editor">✏️ Page Editor</option>
+            <option value="seo">🔍 SEO Settings</option>
+            <option value="backup">💾 Backup & Restore</option>
+          </select>
         </div>
 
         <button
@@ -480,28 +497,33 @@ export default function AdminDashboard() {
               <h2 style={{ color: "#071A3D", margin: 0 }}>Lead Management</h2>
               <p style={{ color: "#64748B", fontSize: "0.9rem" }}>Manage customer loan inquiries and update follow-up statuses.</p>
             </div>
-            <div style={{ display: "flex", gap: "8px" }}>
-              {["All", "New", "Contacted", "Follow-up", "Approved", "Rejected"].map(st => (
-                <button
-                  key={st}
-                  type="button"
-                  onClick={() => setLeadFilter(st)}
-                  style={{
-                    padding: "6px 14px",
-                    borderRadius: "20px",
-                    border: "1px solid #CBD5E1",
-                    background: leadFilter === st ? "#071A3D" : "#fff",
-                    color: leadFilter === st ? "#fff" : "#475569",
-                    fontWeight: "600",
-                    fontSize: "0.85rem",
-                    cursor: "pointer",
-                    transform: "none",
-                    boxShadow: "none"
-                  }}
-                >
-                  {st}
-                </button>
-              ))}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <label style={{ fontWeight: "700", fontSize: "0.88rem", color: "#071A3D", whiteSpace: "nowrap" }}>
+                Filter Status:
+              </label>
+              <select
+                value={leadFilter}
+                onChange={(e) => setLeadFilter(e.target.value)}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  border: "1px solid #071A3D",
+                  backgroundColor: "#071A3D",
+                  color: "#D9A62E",
+                  fontWeight: "700",
+                  fontSize: "0.88rem",
+                  outline: "none",
+                  cursor: "pointer",
+                  boxShadow: "0 2px 8px rgba(7, 26, 61, 0.12)"
+                }}
+              >
+                <option value="All" style={{ background: "#fff", color: "#071A3D" }}>All Leads ({leads.length})</option>
+                <option value="New" style={{ background: "#fff", color: "#0284c7" }}>New ({leads.filter(l => l.status === "New").length})</option>
+                <option value="Contacted" style={{ background: "#fff", color: "#b45309" }}>Contacted ({leads.filter(l => l.status === "Contacted").length})</option>
+                <option value="Follow-up" style={{ background: "#fff", color: "#c2410c" }}>Follow-up ({leads.filter(l => l.status === "Follow-up").length})</option>
+                <option value="Approved" style={{ background: "#fff", color: "#16a34a" }}>Approved ({leads.filter(l => l.status === "Approved").length})</option>
+                <option value="Rejected" style={{ background: "#fff", color: "#dc2626" }}>Rejected ({leads.filter(l => l.status === "Rejected").length})</option>
+              </select>
             </div>
           </div>
 
@@ -739,7 +761,7 @@ export default function AdminDashboard() {
           </div>
 
           <h3 style={{ color: "#071A3D", marginBottom: "15px" }}>Uploaded Image Library</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "20px" }}>
+          <div className={styles.imageGrid}>
             {images.map((img, idx) => (
               <div key={idx} style={{ background: "white", border: "1px solid #E2E8F0", borderRadius: "8px", overflow: "hidden" }}>
                 <img src={img.url} alt={img.name} style={{ width: "100%", height: "140px", objectFit: "cover" }} />
@@ -776,7 +798,7 @@ export default function AdminDashboard() {
           <h2 style={{ color: "#071A3D", marginBottom: "5px" }}>Page Content Editor</h2>
           <p style={{ color: "#64748B", fontSize: "0.9rem", marginBottom: "25px" }}>Edit key website headings, contact details, and text blocks.</p>
 
-          <div className={styles.grid2Col}>
+          <div className={styles.formGrid2}>
             <div>
               <label style={{ fontWeight: "600", fontSize: "0.9rem", display: "block", marginBottom: "5px" }}>Phone Number</label>
               <input
@@ -797,7 +819,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className={styles.grid2Col}>
+          <div className={styles.formGrid2}>
             <div>
               <label style={{ fontWeight: "600", fontSize: "0.9rem", display: "block", marginBottom: "5px" }}>Email Address</label>
               <input
@@ -840,7 +862,7 @@ export default function AdminDashboard() {
 
           <div style={{ marginBottom: "25px", background: "#F8FAFC", padding: "20px", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
             <h3 style={{ color: "#071A3D", marginBottom: "15px" }}>Social Media Links</h3>
-            <div className={styles.grid3Col}>
+            <div className={styles.formGrid3}>
               <div>
                 <label style={{ fontWeight: "600", fontSize: "0.85rem", display: "block", marginBottom: "5px" }}>Facebook URL</label>
                 <input
