@@ -776,7 +776,7 @@ export default function AdminDashboard() {
           <h2 style={{ color: "#071A3D", marginBottom: "5px" }}>Page Content Editor</h2>
           <p style={{ color: "#64748B", fontSize: "0.9rem", marginBottom: "25px" }}>Edit key website headings, contact details, and text blocks.</p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
+          <div className={styles.grid2Col}>
             <div>
               <label style={{ fontWeight: "600", fontSize: "0.9rem", display: "block", marginBottom: "5px" }}>Phone Number</label>
               <input
@@ -797,7 +797,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
+          <div className={styles.grid2Col}>
             <div>
               <label style={{ fontWeight: "600", fontSize: "0.9rem", display: "block", marginBottom: "5px" }}>Email Address</label>
               <input
@@ -840,7 +840,7 @@ export default function AdminDashboard() {
 
           <div style={{ marginBottom: "25px", background: "#F8FAFC", padding: "20px", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
             <h3 style={{ color: "#071A3D", marginBottom: "15px" }}>Social Media Links</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "15px" }}>
+            <div className={styles.grid3Col}>
               <div>
                 <label style={{ fontWeight: "600", fontSize: "0.85rem", display: "block", marginBottom: "5px" }}>Facebook URL</label>
                 <input
