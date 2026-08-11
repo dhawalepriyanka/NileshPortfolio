@@ -1,5 +1,8 @@
 import Link from "next/link";
 import styles from "./CIBILGuide.module.css";
+import { getAllSettings } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "CIBIL Score Guide | Nilesh Kute",
@@ -71,6 +74,9 @@ Note: Different lenders may have different criteria.`,
 ];
 
 export default function CIBILGuidePage() {
+  const settings = getAllSettings();
+  const whatsapp = settings.whatsapp || "918356008675";
+
   return (
     <div className={styles.main}>
       <section className={styles.hero}>
@@ -117,7 +123,7 @@ export default function CIBILGuidePage() {
             <p>Get a free, no-obligation consultation with Nilesh Kute.</p>
             <div className={styles.ctaButtons}>
               <a href="/apply" className="btn">Get Free Consultation</a>
-              <a href="https://wa.me/918356008675" target="_blank" rel="noreferrer" className="btn-secondary">WhatsApp Now</a>
+              <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noreferrer" className="btn-secondary">WhatsApp Now</a>
             </div>
           </div>
         </div>

@@ -53,6 +53,111 @@ function getDb() {
         updatedAt TEXT DEFAULT (datetime('now'))
       );
     `);
+
+    const defaultArticles = [
+      {
+        id: "art-1",
+        slug: "improve-cibil-score",
+        title: "How to Improve Your CIBIL Score Before Applying for a Home Loan",
+        category: "CIBIL Score",
+        excerpt: "Your CIBIL score plays a critical role in home loan approval. Learn actionable tips to boost your credit score before you apply.",
+        date: "2026-08-01",
+        content: `Your CIBIL score (credit score) is one of the most important metrics that banks and financial institutions evaluate when considering your home loan application. A high credit score (typically 750 or above) not only increases your approval chances but also helps you secure lower interest rates and better loan terms.
+
+### Key Steps to Boost Your Credit Score:
+1. **Pay All Dues on Time**: Timely repayment of credit card bills and existing EMIs accounts for a major portion of your credit score. Never miss or delay a payment.
+2. **Keep Credit Utilization Low**: Try to keep your credit card utilization ratio below 30% of your total limit. High utilization indicates credit dependence.
+3. **Avoid Too Many Loan Applications**: Multiple hard inquiries in a short timeframe make you appear credit-hungry, which can temporarily reduce your score.
+4. **Check Your Report for Errors**: Regularly pull your CIBIL report and dispute any errors or incorrect delinquency reporting.
+5. **Maintain a Mix of Credit**: A healthy balance of secured (e.g., car loan, home loan) and unsecured credit (e.g., credit card) demonstrates responsible credit management.`
+      },
+      {
+        id: "art-2",
+        slug: "home-loan-balance-transfer-guide",
+        title: "Home Loan Balance Transfer: When Does It Make Sense?",
+        category: "Balance Transfer",
+        excerpt: "Thinking of transferring your home loan to another lender? Here is everything you need to know about balance transfers.",
+        date: "2026-07-25",
+        content: `A Home Loan Balance Transfer allows you to move your outstanding home loan from your current bank to a new lender offering a lower interest rate or better terms.
+
+### When Should You Consider a Balance Transfer?
+- **Significant Interest Rate Difference**: If another lender offers a rate that is at least 0.50% to 1.00% lower than your current rate.
+- **Early Stage of Loan Tenure**: Balance transfers yield maximum savings during the first 5 to 10 years of a long-term loan when interest component is highest.
+- **Better Customer Service / Top-Up Facility**: When you need an additional top-up loan at home loan interest rates or desire better digital service.`
+      },
+      {
+        id: "art-3",
+        slug: "home-loan-rejection-reasons",
+        title: "Top 5 Reasons Home Loan Applications Get Rejected",
+        category: "Home Loan",
+        excerpt: "Understanding why loan applications fail can help you prepare better. Here are the most common reasons for rejection.",
+        date: "2026-07-18",
+        content: `Home loan rejections can be frustrating, but understanding the root causes allows you to fix deficiencies before re-applying.
+
+### 5 Common Reasons:
+1. **Low CIBIL Score or Delinquent History**: Scores below 650 or past defaults flag high risk.
+2. **High Existing Debt Obligations**: If your total monthly EMIs exceed 50% of your net monthly income (FOIR), lenders may hesitate to extend further credit.
+3. **Property Legal or Valuation Issues**: Title disputes, unapproved building plans, or valuation shortfalls by bank panel valuers.
+4. **Unstable Employment / Income Proof**: Frequent job switches or insufficient ITR documentation for self-employed individuals.
+5. **Incomplete or Inconsistent Paperwork**: Mismatches between application details and submitted documents.`
+      },
+      {
+        id: "art-4",
+        slug: "how-emi-calculated",
+        title: "Understanding EMI: How Is Your Home Loan EMI Calculated?",
+        category: "EMI Tips",
+        excerpt: "Learn the formula behind EMI calculation and how factors like loan amount, tenure, and interest rate affect your monthly payment.",
+        date: "2026-07-10",
+        content: `Equated Monthly Installment (EMI) consists of two parts: Principal repayment and Interest payment.
+
+### The EMI Formula:
+**EMI = [P x R x (1+R)^N] / [(1+R)^N - 1]**
+- **P** = Principal Loan Amount
+- **R** = Monthly Interest Rate (Annual Rate ÷ 12 ÷ 100)
+- **N** = Loan Tenure in Months
+
+### Key Takeaways:
+- Longer tenure reduces your monthly EMI but increases total interest paid over time.
+- Prepaying principal amounts early in your tenure drastically cuts your interest burden.`
+      },
+      {
+        id: "art-5",
+        slug: "documents-required-home-loan",
+        title: "Documents Required for Home Loan: A Complete Checklist",
+        category: "Loan Documents",
+        excerpt: "A comprehensive guide to all the documents you will need when applying for a home loan as a salaried or self-employed applicant.",
+        date: "2026-07-01",
+        content: `Having your documents organized speeds up the loan sanction and disbursement process significantly.
+
+### Mandatory Documents Checklist:
+- **KYC Documents**: PAN Card, Aadhaar Card, Passport/Voter ID.
+- **Salaried Applicants**: 3 months salary slips, 6 months bank statement, Form 16 / ITR for 2 years, Offer letter.
+- **Self-Employed Applicants**: 3 years ITR with computation, audited Balance Sheet & P&L, 12 months bank statement, Business Registration / GST certificate.
+- **Property Documents**: Sales agreement, Allotment letter, Chain of title deeds, Approved building plan.`
+      },
+      {
+        id: "art-6",
+        slug: "pmay-explained",
+        title: "What Is PMAY? Pradhan Mantri Awas Yojana Explained",
+        category: "Government Schemes",
+        excerpt: "Learn about the government housing scheme PMAY, who is eligible, and how much subsidy you can get on your home loan.",
+        date: "2026-06-20",
+        content: `Pradhan Mantri Awas Yojana (PMAY) is a flagship initiative by the Government of India aiming to provide affordable housing to urban and rural poor, economically weaker sections (EWS), low income groups (LIG), and middle income groups (MIG).
+
+### Key Highlights:
+- **Credit Linked Subsidy Scheme (CLSS)**: Interest subsidy on home loans for eligible first-time homebuyers.
+- **Eligibility**: The applicant or family members must not own a pucca house anywhere in India.
+- **Beneficiary Categories**: EWS, LIG, MIG-I, and MIG-II based on annual household income.`
+      }
+    ];
+
+    const insert = db.prepare(`
+      INSERT OR IGNORE INTO Blog (id, slug, title, category, excerpt, content, date)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const a of defaultArticles) {
+      insert.run(a.id, a.slug, a.title, a.category, a.excerpt, a.content, a.date);
+    }
   }
   return db;
 }
@@ -155,7 +260,25 @@ export function setSetting(key, value) {
 export function getAllSettings() {
   const db = getDb();
   const rows = db.prepare("SELECT * FROM Setting").all();
-  const result = {};
+  const result = {
+    siteTitle: "Nilesh Kute - Home Loan Consultant",
+    phone: "8356008675",
+    whatsapp: "918356008675",
+    email: "nileshkute43@gmail.com",
+    address: "Belapur, Navi Mumbai",
+    heroHeadline: "Your Home Loan, Guided by an Expert.",
+    aboutHeading: "Experienced Home Loan Consultant You Can Trust",
+    facebookUrl: "https://facebook.com",
+    instagramUrl: "https://instagram.com",
+    youtubeUrl: "https://youtube.com/@nileshkute",
+    metaHomeTitle: "Nilesh Kute | Expert Home Loan Consultant in Belapur",
+    metaHomeDesc: "Get personalized guidance for Home Loans, Balance Transfer, Top-Up Loans, and more with Nilesh Kute.",
+    metaHomeKeywords: "Home loan consultant Belapur, Home loan expert, Balance transfer, LAP",
+    metaServicesTitle: "Loan Services | Nilesh Kute",
+    metaServicesDesc: "Explore our range of loan services including Home Loans, Balance Transfers, Top-Up Loans, LAP, Personal Loans, and Business Loans.",
+    metaContactTitle: "Contact Nilesh Kute | Home Loan Consultant",
+    metaContactDesc: "Get in touch with Nilesh Kute for expert home loan guidance. Call, WhatsApp, or email for a free consultation."
+  };
   rows.forEach(r => {
     try {
       result[r.key] = JSON.parse(r.value);

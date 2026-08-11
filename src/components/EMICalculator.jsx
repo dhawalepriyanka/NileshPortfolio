@@ -1,25 +1,34 @@
 "use client";
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import styles from "./EMICalculator.module.css";
 
 export default function EMICalculator() {
-  const [loanAmount, setLoanAmount] = useState(5000000);
+  const [loanAmount, setLoanAmount] = useState(5000000); // 50 Lakhs default
   const [interestRate, setInterestRate] = useState(8.5);
   const [tenureYears, setTenureYears] = useState(20);
+  const [whatsapp, setWhatsapp] = useState("918356008675");
 
   const [emi, setEmi] = useState(0);
   const [totalInterest, setTotalInterest] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
 
   useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.whatsapp) setWhatsapp(data.whatsapp);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     calculateEMI();
   }, [loanAmount, interestRate, tenureYears]);
 
   const calculateEMI = () => {
-    const p = loanAmount;
-    const r = interestRate / 12 / 100;
-    const n = tenureYears * 12;
+    const p = Number(loanAmount);
+    const r = Number(interestRate) / 12 / 100;
+    const n = Number(tenureYears) * 12;
 
     if (p > 0 && r > 0 && n > 0) {
       const emiValue = (p * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
@@ -37,6 +46,7 @@ export default function EMICalculator() {
   };
 
   const formatCurrency = (val) => {
+    if (!val || val <= 0) return "₹0";
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
@@ -58,13 +68,14 @@ export default function EMICalculator() {
                 <input 
                   type="number" 
                   value={loanAmount} 
-                  onChange={(e) => setLoanAmount(Number(e.target.value))}
+                  placeholder="e.g. 5000000"
+                  onChange={(e) => setLoanAmount(e.target.value === "" ? "" : Number(e.target.value))}
                   className={styles.numInput}
                 />
                 <input 
                   type="range" 
-                  min="100000" max="50000000" step="100000"
-                  value={loanAmount}
+                  min="0" max="50000000" step="100000"
+                  value={loanAmount || 0}
                   onChange={(e) => setLoanAmount(Number(e.target.value))}
                   className={styles.rangeInput}
                 />
@@ -77,14 +88,15 @@ export default function EMICalculator() {
                 <input 
                   type="number" 
                   value={interestRate} 
-                  onChange={(e) => setInterestRate(Number(e.target.value))}
+                  placeholder="e.g. 8.5"
+                  onChange={(e) => setInterestRate(e.target.value === "" ? "" : Number(e.target.value))}
                   className={styles.numInput}
                   step="0.1"
                 />
                 <input 
                   type="range" 
-                  min="5" max="20" step="0.1"
-                  value={interestRate}
+                  min="0" max="20" step="0.1"
+                  value={interestRate || 0}
                   onChange={(e) => setInterestRate(Number(e.target.value))}
                   className={styles.rangeInput}
                 />
@@ -97,13 +109,14 @@ export default function EMICalculator() {
                 <input 
                   type="number" 
                   value={tenureYears} 
-                  onChange={(e) => setTenureYears(Number(e.target.value))}
+                  placeholder="e.g. 20"
+                  onChange={(e) => setTenureYears(e.target.value === "" ? "" : Number(e.target.value))}
                   className={styles.numInput}
                 />
                 <input 
                   type="range" 
-                  min="1" max="30" step="1"
-                  value={tenureYears}
+                  min="0" max="30" step="1"
+                  value={tenureYears || 0}
                   onChange={(e) => setTenureYears(Number(e.target.value))}
                   className={styles.rangeInput}
                 />
@@ -132,7 +145,7 @@ export default function EMICalculator() {
                 <p>Need help understanding your EMI?</p>
                 <div className={styles.ctaButtons}>
                   <a href="/apply" className="btn">Apply Now</a>
-                  <a href="https://wa.me/918356008675" target="_blank" rel="noreferrer" className="btn-secondary">WhatsApp</a>
+                  <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noreferrer" className="btn-secondary">WhatsApp</a>
                 </div>
               </div>
             </div>

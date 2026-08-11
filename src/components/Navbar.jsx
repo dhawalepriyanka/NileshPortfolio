@@ -1,12 +1,22 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./Navbar.module.css";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [whatsapp, setWhatsapp] = useState("918356008675");
   const pathname = usePathname();
+
+  useEffect(() => {
+    fetch(`/api/settings?t=${Date.now()}`, { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.whatsapp) setWhatsapp(data.whatsapp);
+      })
+      .catch(() => {});
+  }, []);
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
@@ -52,7 +62,7 @@ export default function Navbar() {
 
         {/* Right CTA */}
         <div className={styles.headerCta}>
-          <a href="https://wa.me/918356008675" target="_blank" rel="noreferrer" className={styles.whatsappBtn}>
+          <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noreferrer" className={styles.whatsappBtn}>
             WhatsApp
           </a>
           <a href="/apply" className={styles.applyBtn}>
@@ -83,7 +93,7 @@ export default function Navbar() {
             </li>
           ))}
           <li className={styles.mobileCtaWrapper}>
-            <a href="https://wa.me/918356008675" target="_blank" rel="noreferrer" className={styles.mobileWhatsappBtn}>
+            <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noreferrer" className={styles.mobileWhatsappBtn}>
               WhatsApp
             </a>
             <a href="/apply" className={styles.mobileApplyBtn} onClick={() => setIsOpen(false)}>

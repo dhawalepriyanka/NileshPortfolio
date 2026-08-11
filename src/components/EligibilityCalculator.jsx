@@ -1,22 +1,41 @@
 "use client";
-import { useState } from "react";
-import Link from "next/link";
+import { useState, useEffect } from "react";
 import styles from "./EligibilityCalculator.module.css";
 
 export default function EligibilityCalculator() {
-  const [income, setIncome] = useState(50000);
-  const [existingEMI, setExistingEMI] = useState(0);
+  const [income, setIncome] = useState("");
+  const [existingEMI, setExistingEMI] = useState("");
   const [employmentType, setEmploymentType] = useState("Salaried");
-  const [tenure, setTenure] = useState(20);
-  const [interestRate, setInterestRate] = useState(8.5);
+  const [tenure, setTenure] = useState("");
+  const [interestRate, setInterestRate] = useState("");
   const [eligibility, setEligibility] = useState(null);
+  const [whatsapp, setWhatsapp] = useState("918356008675");
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.whatsapp) setWhatsapp(data.whatsapp);
+      })
+      .catch(() => {});
+  }, []);
 
   const calculate = () => {
+    const inc = Number(income);
+    const emi = Number(existingEMI);
+    const ten = Number(tenure);
+    const rate = Number(interestRate);
+
+    if (inc <= 0 || ten <= 0 || rate <= 0) {
+      setEligibility(0);
+      return;
+    }
+
     const multiplier = employmentType === "Salaried" ? 0.55 : 0.5;
-    const availableEMI = income * multiplier - existingEMI;
+    const availableEMI = inc * multiplier - emi;
     if (availableEMI <= 0) { setEligibility(0); return; }
-    const r = interestRate / 12 / 100;
-    const n = tenure * 12;
+    const r = rate / 12 / 100;
+    const n = ten * 12;
     const loanAmount = availableEMI * ((Math.pow(1 + r, n) - 1) / (r * Math.pow(1 + r, n)));
     setEligibility(Math.round(loanAmount));
   };
@@ -31,13 +50,13 @@ export default function EligibilityCalculator() {
           <div className={styles.inputs}>
             <div className={styles.group}>
               <label>Monthly Income (₹)</label>
-              <input type="number" value={income} onChange={e => setIncome(Number(e.target.value))} className={styles.input} />
-              <input type="range" min="10000" max="500000" step="5000" value={income} onChange={e => setIncome(Number(e.target.value))} className={styles.range} />
+              <input type="number" value={income} placeholder="e.g. 50000" onChange={e => setIncome(e.target.value === "" ? "" : Number(e.target.value))} className={styles.input} />
+              <input type="range" min="0" max="500000" step="5000" value={income || 0} onChange={e => setIncome(Number(e.target.value))} className={styles.range} />
             </div>
             <div className={styles.group}>
               <label>Existing Monthly EMI (₹)</label>
-              <input type="number" value={existingEMI} onChange={e => setExistingEMI(Number(e.target.value))} className={styles.input} />
-              <input type="range" min="0" max="100000" step="1000" value={existingEMI} onChange={e => setExistingEMI(Number(e.target.value))} className={styles.range} />
+              <input type="number" value={existingEMI} placeholder="e.g. 0" onChange={e => setExistingEMI(e.target.value === "" ? "" : Number(e.target.value))} className={styles.input} />
+              <input type="range" min="0" max="100000" step="1000" value={existingEMI || 0} onChange={e => setExistingEMI(Number(e.target.value))} className={styles.range} />
             </div>
             <div className={styles.group}>
               <label>Employment Type</label>
@@ -49,13 +68,13 @@ export default function EligibilityCalculator() {
             </div>
             <div className={styles.group}>
               <label>Loan Tenure (Years)</label>
-              <input type="number" value={tenure} onChange={e => setTenure(Number(e.target.value))} className={styles.input} />
-              <input type="range" min="1" max="30" step="1" value={tenure} onChange={e => setTenure(Number(e.target.value))} className={styles.range} />
+              <input type="number" value={tenure} placeholder="e.g. 20" onChange={e => setTenure(e.target.value === "" ? "" : Number(e.target.value))} className={styles.input} />
+              <input type="range" min="0" max="30" step="1" value={tenure || 0} onChange={e => setTenure(Number(e.target.value))} className={styles.range} />
             </div>
             <div className={styles.group}>
               <label>Expected Interest Rate (%)</label>
-              <input type="number" value={interestRate} onChange={e => setInterestRate(Number(e.target.value))} className={styles.input} step="0.1" />
-              <input type="range" min="5" max="20" step="0.1" value={interestRate} onChange={e => setInterestRate(Number(e.target.value))} className={styles.range} />
+              <input type="number" value={interestRate} placeholder="e.g. 8.5" onChange={e => setInterestRate(e.target.value === "" ? "" : Number(e.target.value))} className={styles.input} step="0.1" />
+              <input type="range" min="0" max="20" step="0.1" value={interestRate || 0} onChange={e => setInterestRate(Number(e.target.value))} className={styles.range} />
             </div>
             <button onClick={calculate} className={styles.calcBtn}>Check Eligibility</button>
           </div>
@@ -75,7 +94,7 @@ export default function EligibilityCalculator() {
                 </p>
                 <div className={styles.ctaButtons}>
                   <a href="/apply" className="btn">Apply Now</a>
-                  <a href="https://wa.me/918356008675" target="_blank" rel="noreferrer" className="btn-secondary">WhatsApp</a>
+                  <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noreferrer" className="btn-secondary">WhatsApp</a>
                 </div>
               </div>
             )}

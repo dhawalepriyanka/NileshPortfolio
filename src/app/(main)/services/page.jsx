@@ -1,10 +1,15 @@
 import Link from "next/link";
 import styles from "./Services.module.css";
+import { getSetting } from "@/lib/db";
 
-export const metadata = {
-  title: "Loan Services | Nilesh Kute",
-  description: "Explore our range of loan services including Home Loans, Balance Transfers, Top-Up Loans, LAP, Personal Loans, and Business Loans.",
-};
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata() {
+  const title = getSetting("metaServicesTitle", "Loan Services | Nilesh Kute");
+  const description = getSetting("metaServicesDesc", "Explore our range of loan services including Home Loans, Balance Transfers, Top-Up Loans, LAP, Personal Loans, and Business Loans.");
+
+  return { title, description };
+}
 
 const servicesList = [
   {
@@ -48,6 +53,18 @@ const servicesList = [
     desc: "Quick, hassle-free personal loans for medical emergencies, weddings, or travel.",
     link: "/personal-loan",
     icon: "💰"
+  },
+  {
+    title: "Medical Insurance",
+    desc: "Comprehensive health & medical insurance plans to protect you and your family against medical emergencies.",
+    link: "/apply",
+    icon: "🏥"
+  },
+  {
+    title: "Mutual Funds",
+    desc: "Expert guidance for SIP & lump sum mutual fund investments to grow your wealth.",
+    link: "/apply",
+    icon: "📊"
   }
 ];
 

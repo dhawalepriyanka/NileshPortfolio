@@ -4,8 +4,24 @@ import Image from "next/image";
 import EMICalculator from "@/components/EMICalculator";
 import FreeConsultation from "@/components/FreeConsultation";
 import TrustStats from "@/components/TrustStats";
+import { getSetting, getAllSettings } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata() {
+  const title = getSetting("metaHomeTitle", "Nilesh Kute | Expert Home Loan Consultant in Belapur");
+  const description = getSetting("metaHomeDesc", "Get personalized guidance for Home Loans, Balance Transfer, Top-Up Loans, and more with Nilesh Kute.");
+  const keywords = getSetting("metaHomeKeywords", "Home loan consultant Belapur, Home loan expert, Balance transfer, LAP");
+
+  return { title, description, keywords };
+}
 
 export default function Home() {
+  const settings = getAllSettings();
+  const heroHeadline = settings.heroHeadline || "Your Home Loan, Guided by an Expert.";
+  const heroSubtitle = settings.heroSubtitle || "Get personalized assistance for Home Loans, Balance Transfer, Top-Up Loans, Loan Against Property, Personal & Business Loans in Navi Mumbai.";
+  const whatsapp = settings.whatsapp || "918356008675";
+
   return (
     <div className={styles.main}>
       {/* 1. HERO SECTION */}
@@ -16,11 +32,10 @@ export default function Home() {
               <span>🏆</span> 11+ Years of Trusted Expertise
             </div>
             <h1 className={styles.heroTitle}>
-              Your Home Loan, <br />
-              <span className={styles.heroTitleHighlight}>Guided by an Expert.</span>
+              {heroHeadline}
             </h1>
             <p className={styles.heroDesc}>
-              Get personalized assistance for Home Loans, Balance Transfer, Top-Up Loans, Loan Against Property, Personal & Business Loans in Navi Mumbai.
+              {heroSubtitle}
             </p>
             <ul className={styles.trustPoints}>
               <li><span className={styles.checkIconInline}>✓</span> Fast Processing</li>
@@ -30,7 +45,7 @@ export default function Home() {
             </ul>
             <div className={styles.heroCta}>
               <a href="/apply" className={styles.primaryBtn}>Apply Now</a>
-              <a href="https://wa.me/918356008675" target="_blank" rel="noreferrer" className={styles.secondaryBtn}>WhatsApp Me</a>
+              <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noreferrer" className={styles.secondaryBtn}>WhatsApp Me</a>
             </div>
           </div>
 
@@ -152,7 +167,9 @@ export default function Home() {
               { title: "Top-Up Loan", icon: "📈", desc: "Additional funding on top of home loan for personal or business use.", link: "/services#topup-loan" },
               { title: "Loan Against Property", icon: "🏛️", desc: "Mortgage commercial or residential property for high-value capital.", link: "/services#lap" },
               { title: "Commercial Property Loan", icon: "🏢", desc: "Purchase shop, office space, or commercial unit hassle-free.", link: "/services#commercial" },
-              { title: "Personal & Business Loans", icon: "💼", desc: "Quick collateral-free funds for business growth or urgent needs.", link: "/services#personal" }
+              { title: "Personal & Business Loans", icon: "💼", desc: "Quick collateral-free funds for business growth or urgent needs.", link: "/services#personal" },
+              { title: "Medical Insurance", icon: "🏥", desc: "Comprehensive health insurance plans for family medical protection.", link: "/services" },
+              { title: "Mutual Funds", icon: "📊", desc: "SIP & lump sum mutual fund investments to grow long-term wealth.", link: "/services" }
             ].map(service => (
               <div key={service.title} className={styles.serviceCard}>
                 <div>

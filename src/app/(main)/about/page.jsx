@@ -1,6 +1,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import styles from "./About.module.css";
+import { getAllSettings } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "About Nilesh Kute | Home Loan Consultant",
@@ -8,6 +11,9 @@ export const metadata = {
 };
 
 export default function AboutPage() {
+  const settings = getAllSettings();
+  const aboutHeading = settings.aboutHeading || "Experienced Home Loan Consultant You Can Trust";
+
   return (
     <div className={styles.main}>
       <section className={styles.aboutHero}>
@@ -29,7 +35,7 @@ export default function AboutPage() {
             
             <div className={styles.contentCol}>
               <span className={styles.badge}>About Me</span>
-              <h1 className={styles.heading}>Experienced Home Loan Consultant You Can Trust</h1>
+              <h1 className={styles.heading}>{aboutHeading}</h1>
               
               <p className={styles.paragraph}>
                 Nilesh Kute is a dedicated Home Loan Consultant with over 11 years of experience in the financial sector. 

@@ -25,7 +25,7 @@ export default function AdminLayout({ children }) {
             Admin Panel
           </span>
         </div>
-        <Link
+        <a
           href="/"
           style={{
             color: "#D9A62E",
@@ -33,11 +33,12 @@ export default function AdminLayout({ children }) {
             fontSize: "0.9rem",
             border: "1px solid #D9A62E",
             padding: "6px 16px",
-            borderRadius: "4px"
+            borderRadius: "4px",
+            textDecoration: "none"
           }}
         >
           ← Back to Website
-        </Link>
+        </a>
       </div>
 
       {/* Admin Content */}

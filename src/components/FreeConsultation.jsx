@@ -92,6 +92,8 @@ export default function FreeConsultation() {
                   <option value="Loan Against Property">Loan Against Property</option>
                   <option value="Personal Loan">Personal Loan</option>
                   <option value="Business Loan">Business Loan</option>
+                  <option value="Medical Insurance">Medical Insurance</option>
+                  <option value="Mutual Funds">Mutual Funds</option>
                 </select>
               </div>
               <div className={styles.inputGroup}>

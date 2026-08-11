@@ -1,11 +1,13 @@
-import { articles } from "../page";
 import styles from "../Blog.module.css";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getBlogBySlug } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
-  const article = articles.find((a) => a.slug === slug);
+  const article = getBlogBySlug(slug);
   if (!article) return { title: "Article Not Found" };
 
   return {
@@ -16,7 +18,7 @@ export async function generateMetadata({ params }) {
 
 export default async function BlogPostPage({ params }) {
   const { slug } = await params;
-  const article = articles.find((a) => a.slug === slug);
+  const article = getBlogBySlug(slug);
 
   if (!article) {
     notFound();

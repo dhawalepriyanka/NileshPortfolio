@@ -12,8 +12,8 @@
 
 .tabBtn {
   padding: 12px 20px;
-  background: transparent;
-  color: #475569;
+  background: transparent !important;
+  color: #475569 !important;
   border: none !important;
   border-bottom: 3px solid transparent !important;
   font-weight: 600;

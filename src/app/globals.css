@@ -45,27 +45,41 @@ button, .btn {
   display: inline-block;
   padding: 12px 24px;
   background-color: var(--gold);
-  color: var(--white);
+  color: #FFFFFF;
   border: none;
   border-radius: 4px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   text-align: center;
+  text-decoration: none;
 }
 
 button:hover, .btn:hover {
   background-color: #c49428;
+  color: #FFFFFF;
   transform: translateY(-2px);
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
 .btn-secondary {
-  background-color: var(--primary-navy);
+  display: inline-block;
+  padding: 12px 24px;
+  background-color: #071A3D !important;
+  color: #FFFFFF !important;
+  border-radius: 4px;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+  border: none;
+  transition: all 0.3s ease;
 }
 
 .btn-secondary:hover {
-  background-color: var(--secondary-navy);
+  background-color: #0B234F !important;
+  color: #D9A62E !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
 .section {
@@ -78,6 +92,10 @@ button:hover, .btn:hover {
 
 .mb-4 {
   margin-bottom: 1rem;
+}
+
+.mt-4 {
+  margin-top: 1rem;
 }
 
 @media (max-width: 768px) {

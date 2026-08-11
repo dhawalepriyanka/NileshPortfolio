@@ -6,7 +6,14 @@ import styles from "./Admin.module.css";
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("leads");
-  
+
+  // Auth State
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+
   // State
   const [leads, setLeads] = useState([]);
   const [leadFilter, setLeadFilter] = useState("All");
@@ -53,11 +60,41 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    fetchLeads();
-    fetchBlogs();
-    fetchImages();
-    fetchSettings();
+    const session = localStorage.getItem("nilesh_admin_logged_in");
+    if (session === "true") {
+      setIsLoggedIn(true);
+      fetchLeads();
+      fetchBlogs();
+      fetchImages();
+      fetchSettings();
+    }
+    setIsCheckingAuth(false);
   }, []);
+
+  const handleLoginSubmit = (e) => {
+    e.preventDefault();
+    setLoginError("");
+    const user = username.trim().toLowerCase();
+    const pass = password.trim();
+
+    if ((user === "admin" || user === "nilesh") && (pass === "admin123" || pass === "admin" || pass === "nilesh123")) {
+      localStorage.setItem("nilesh_admin_logged_in", "true");
+      setIsLoggedIn(true);
+      showToast("Welcome! Logged in successfully.");
+      fetchLeads();
+      fetchBlogs();
+      fetchImages();
+      fetchSettings();
+    } else {
+      setLoginError("Invalid Username or Password. Please try again.");
+    }
+  };
+
+  const handleLogoutClick = () => {
+    localStorage.removeItem("nilesh_admin_logged_in");
+    setIsLoggedIn(false);
+    showToast("Logged out successfully.");
+  };
 
   const fetchLeads = async () => {
     try {
@@ -82,7 +119,7 @@ export default function AdminDashboard() {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch("/api/settings");
+      const res = await fetch(`/api/settings?t=${Date.now()}`, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         if (Object.keys(data).length > 0) {
@@ -170,6 +207,24 @@ export default function AdminDashboard() {
     setUploading(false);
   };
 
+  const handleDeleteImage = async (filename) => {
+    if (!confirm("Are you sure you want to delete this image?")) return;
+    try {
+      const res = await fetch(`/api/upload?filename=${encodeURIComponent(filename)}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        showToast("Image deleted successfully!");
+        fetchImages();
+      } else {
+        showToast("Failed to delete image.");
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Error deleting image.");
+    }
+  };
+
   // Save Settings
   const handleSaveSettings = async (e) => {
     e.preventDefault();
@@ -180,7 +235,8 @@ export default function AdminDashboard() {
         body: JSON.stringify(settings)
       });
       if (res.ok) {
-        showToast("Settings saved successfully!");
+        showToast("Settings saved successfully! Refresh your website tab to see changes.");
+        fetchSettings();
       }
     } catch (e) { console.error(e); }
   };
@@ -218,6 +274,143 @@ export default function AdminDashboard() {
     Rejected: { bg: "#fee2e2", color: "#dc2626" },
   };
 
+  if (isCheckingAuth) {
+    return (
+      <div style={{ padding: "60px", textAlign: "center", color: "#071A3D", fontWeight: "600" }}>
+        Checking authentication...
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div style={{
+        maxWidth: "400px",
+        margin: "30px auto",
+        padding: "35px 30px",
+        background: "#FFFFFF",
+        borderRadius: "12px",
+        boxShadow: "0 10px 30px rgba(7, 26, 61, 0.12)",
+        border: "1px solid #E2E8F0"
+      }}>
+        <div style={{ textAlign: "center", marginBottom: "25px" }}>
+          <div style={{
+            width: "56px",
+            height: "56px",
+            background: "#071A3D",
+            color: "#D9A62E",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "1.6rem",
+            margin: "0 auto 12px auto"
+          }}>
+            👤
+          </div>
+          <h2 style={{ color: "#071A3D", fontSize: "1.5rem", margin: 0, fontWeight: "700" }}>
+            Admin Login
+          </h2>
+          <p style={{ color: "#64748B", fontSize: "0.85rem", marginTop: "4px" }}>
+            Sign in to access Nilesh Kute Portfolio Admin Panel
+          </p>
+        </div>
+
+        {loginError && (
+          <div style={{
+            background: "#FEF2F2",
+            color: "#DC2626",
+            border: "1px solid #FCA5A5",
+            padding: "10px 14px",
+            borderRadius: "6px",
+            fontSize: "0.85rem",
+            marginBottom: "18px",
+            fontWeight: "600",
+            textAlign: "center"
+          }}>
+            {loginError}
+          </div>
+        )}
+
+        <form onSubmit={handleLoginSubmit}>
+          <div style={{ marginBottom: "16px" }}>
+            <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#334155", marginBottom: "6px" }}>
+              Username / ID
+            </label>
+            <input
+              type="text"
+              required
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="e.g. admin"
+              style={{
+                width: "100%",
+                padding: "11px 14px",
+                border: "1px solid #CBD5E1",
+                borderRadius: "6px",
+                fontSize: "0.95rem",
+                outline: "none"
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: "22px" }}>
+            <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#334155", marginBottom: "6px" }}>
+              Password
+            </label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              style={{
+                width: "100%",
+                padding: "11px 14px",
+                border: "1px solid #CBD5E1",
+                borderRadius: "6px",
+                fontSize: "0.95rem",
+                outline: "none"
+              }}
+            />
+          </div>
+
+          <button
+            type="submit"
+            style={{
+              width: "100%",
+              background: "#071A3D",
+              color: "#D9A62E",
+              border: "none",
+              padding: "12px",
+              borderRadius: "6px",
+              fontWeight: "700",
+              fontSize: "1rem",
+              cursor: "pointer",
+              boxShadow: "0 4px 12px rgba(7, 26, 61, 0.2)"
+            }}
+          >
+            Log In →
+          </button>
+        </form>
+
+        <div style={{
+          marginTop: "22px",
+          padding: "12px",
+          background: "#F8FAFC",
+          borderRadius: "6px",
+          border: "1px dashed #CBD5E1",
+          fontSize: "0.82rem",
+          color: "#475569",
+          textAlign: "center"
+        }}>
+          <strong>🔑 Credentials:</strong><br />
+          ID: <code style={{ background: "#E2E8F0", padding: "2px 6px", borderRadius: "3px", fontWeight: "600" }}>admin</code> | Password: <code style={{ background: "#E2E8F0", padding: "2px 6px", borderRadius: "3px", fontWeight: "600" }}>admin123</code>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.adminContainer}>
       {toast && (
@@ -238,24 +431,45 @@ export default function AdminDashboard() {
       )}
 
       {/* Admin Tab Navigation */}
-      <div className={styles.tabNav}>
-        {[
-          { id: "leads", label: "📊 Lead Management", count: leads.length },
-          { id: "blogs", label: "📝 Blog Management", count: blogs.length },
-          { id: "images", label: "🖼️ Image Upload", count: images.length },
-          { id: "editor", label: "✏️ Page Editor" },
-          { id: "seo", label: "🔍 SEO Settings" },
-          { id: "backup", label: "💾 Backup & Restore" }
-        ].map(tab => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={`${styles.tabBtn} ${activeTab === tab.id ? styles.tabBtnActive : ""}`}
-          >
-            {tab.label} {tab.count !== undefined && `(${tab.count})`}
-          </button>
-        ))}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", flexWrap: "wrap", gap: "15px", borderBottom: "2px solid #E2E8F0", paddingBottom: "10px" }}>
+        <div className={styles.tabNav} style={{ borderBottom: "none", marginBottom: 0 }}>
+          {[
+            { id: "leads", label: "📊 Lead Management", count: leads.length },
+            { id: "blogs", label: "📝 Blog Management", count: blogs.length },
+            { id: "images", label: "🖼️ Image Upload", count: images.length },
+            { id: "editor", label: "✏️ Page Editor" },
+            { id: "seo", label: "🔍 SEO Settings" },
+            { id: "backup", label: "💾 Backup & Restore" }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`${styles.tabBtn} ${activeTab === tab.id ? styles.tabBtnActive : ""}`}
+            >
+              {tab.label} {tab.count !== undefined && `(${tab.count})`}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={handleLogoutClick}
+          style={{
+            background: "#fee2e2",
+            color: "#dc2626",
+            border: "1px solid #fca5a5",
+            padding: "8px 16px",
+            borderRadius: "6px",
+            cursor: "pointer",
+            fontWeight: "700",
+            fontSize: "0.85rem",
+            transform: "none",
+            boxShadow: "none"
+          }}
+        >
+          🔒 Logout
+        </button>
       </div>
 
       {/* 1. LEAD MANAGEMENT */}
@@ -533,13 +747,22 @@ export default function AdminDashboard() {
                   <div style={{ fontSize: "0.8rem", color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "8px" }}>
                     {img.name}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => { navigator.clipboard.writeText(img.url); showToast("Image URL copied to clipboard!"); }}
-                    style={{ background: "#071A3D", color: "#D9A62E", border: "none", padding: "6px 12px", borderRadius: "4px", fontSize: "0.8rem", cursor: "pointer", width: "100%" }}
-                  >
-                    Copy URL
-                  </button>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <button
+                      type="button"
+                      onClick={() => { navigator.clipboard.writeText(img.url); showToast("Image URL copied to clipboard!"); }}
+                      style={{ background: "#071A3D", color: "#D9A62E", border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "0.8rem", cursor: "pointer", flex: 1 }}
+                    >
+                      Copy URL
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteImage(img.name)}
+                      style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "0.8rem", cursor: "pointer", fontWeight: "600" }}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -601,6 +824,16 @@ export default function AdminDashboard() {
               type="text"
               value={settings.heroHeadline || ""}
               onChange={e => setSettings({ ...settings, heroHeadline: e.target.value })}
+              style={{ width: "100%", padding: "10px", borderRadius: "4px", border: "1px solid #CBD5E1" }}
+            />
+          </div>
+
+          <div style={{ marginBottom: "20px" }}>
+            <label style={{ fontWeight: "600", fontSize: "0.9rem", display: "block", marginBottom: "5px" }}>About Page Main Heading</label>
+            <input
+              type="text"
+              value={settings.aboutHeading || ""}
+              onChange={e => setSettings({ ...settings, aboutHeading: e.target.value })}
               style={{ width: "100%", padding: "10px", borderRadius: "4px", border: "1px solid #CBD5E1" }}
             />
           </div>

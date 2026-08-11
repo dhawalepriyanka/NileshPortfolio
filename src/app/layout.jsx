@@ -3,6 +3,9 @@ import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export const metadata = {
   title: "Nilesh Kute | Expert Home Loan Consultant in Belapur",
   description: "Get personalized guidance for Home Loans, Balance Transfer, Top-Up Loans, and more with Nilesh Kute. 11+ years of experience turning dreams into reality.",
