@@ -7,15 +7,36 @@ let db;
 function getDb() {
   if (!db) {
     try {
-      const dbDir = path.join(process.cwd(), "prisma");
-      if (!fs.existsSync(dbDir)) {
-        fs.mkdirSync(dbDir, { recursive: true });
+      let dbPath;
+      const isVercel = process.env.VERCEL || process.env.NODE_ENV === "production";
+      
+      if (isVercel) {
+        dbPath = "/tmp/dev.db";
+        const origDbPath = path.join(process.cwd(), "prisma", "dev.db");
+        if (!fs.existsSync(/*turbopackIgnore: true*/ dbPath) && fs.existsSync(/*turbopackIgnore: true*/ origDbPath)) {
+          try {
+            fs.copyFileSync(origDbPath, dbPath);
+          } catch (err) {
+            console.warn("Could not copy dev.db to /tmp:", err.message);
+          }
+        }
+      } else {
+        const dbDir = path.join(process.cwd(), "prisma");
+        if (!fs.existsSync(dbDir)) {
+          fs.mkdirSync(dbDir, { recursive: true });
+        }
+        dbPath = path.join(dbDir, "dev.db");
       }
-      const dbPath = path.join(dbDir, "dev.db");
+
       db = new Database(dbPath);
     } catch (e) {
-      console.warn("Falling back to in-memory database for Vercel deployment:", e.message);
-      db = new Database(":memory:");
+      console.warn("Falling back to /tmp or in-memory database for Vercel deployment:", e.message);
+      try {
+        db = new Database("/tmp/dev.db");
+      } catch (err) {
+        console.warn("Falling back to in-memory database:", err.message);
+        db = new Database(":memory:");
+      }
     }
 
     db.exec(`
@@ -164,24 +185,57 @@ function getDb() {
 
 // --- LEADS ---
 export function createLead(data) {
-  const db = getDb();
+  let database = getDb();
   const id = Math.random().toString(36).slice(2) + Date.now().toString(36);
-  const stmt = db.prepare(`
-    INSERT INTO Lead (id, name, phone, email, loanType, employmentType, loanAmount, city, source, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  stmt.run(
-    id,
-    data.name,
-    data.phone,
-    data.email ?? null,
-    data.loanType,
-    data.employmentType ?? null,
-    data.loanAmount ?? null,
-    data.city ?? null,
-    data.source ?? "Website",
-    data.notes ?? null
-  );
+
+  const insertAction = (targetDb) => {
+    const stmt = targetDb.prepare(`
+      INSERT INTO Lead (id, name, phone, email, loanType, employmentType, loanAmount, city, source, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(
+      id,
+      data.name,
+      data.phone,
+      data.email ?? null,
+      data.loanType,
+      data.employmentType ?? null,
+      data.loanAmount ?? null,
+      data.city ?? null,
+      data.source ?? "Website",
+      data.notes ?? null
+    );
+  };
+
+  try {
+    insertAction(database);
+  } catch (err) {
+    console.warn("Retrying createLead on writable /tmp database:", err.message);
+    try {
+      db = new Database("/tmp/dev.db");
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS Lead (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          phone TEXT NOT NULL,
+          email TEXT,
+          loanType TEXT NOT NULL,
+          employmentType TEXT,
+          loanAmount TEXT,
+          city TEXT,
+          source TEXT DEFAULT 'Website',
+          status TEXT DEFAULT 'New',
+          notes TEXT,
+          followUpDate TEXT,
+          createdAt TEXT DEFAULT (datetime('now')),
+          updatedAt TEXT DEFAULT (datetime('now'))
+        );
+      `);
+      insertAction(db);
+    } catch (fallbackErr) {
+      console.error("Critical createLead fallback error:", fallbackErr.message);
+    }
+  }
   return { id };
 }
 
