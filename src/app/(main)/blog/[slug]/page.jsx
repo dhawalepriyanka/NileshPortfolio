@@ -45,6 +45,11 @@ export default async function BlogPostPage({ params }) {
 
       <section style={{ padding: "60px 0", backgroundColor: "#fff" }}>
         <div className="container" style={{ maxWidth: "850px" }}>
+          {article.imageUrl && (
+            <div style={{ width: "100%", maxHeight: "420px", overflow: "hidden", borderRadius: "10px", marginBottom: "35px", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}>
+              <img src={article.imageUrl} alt={article.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            </div>
+          )}
           <div style={{ fontSize: "1.1rem", lineHeight: "1.8", color: "#333", whiteSpace: "pre-line" }}>
             {article.content}
           </div>

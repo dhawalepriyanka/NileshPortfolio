@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import styles from "./Admin.module.css";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("leads");
@@ -47,7 +49,8 @@ export default function AdminDashboard() {
     category: "Home Loan",
     excerpt: "",
     content: "",
-    slug: ""
+    slug: "",
+    imageUrl: ""
   });
 
   // Notifications
@@ -105,7 +108,7 @@ export default function AdminDashboard() {
 
   const fetchBlogs = async () => {
     try {
-      const res = await fetch("/api/blogs");
+      const res = await fetch(`/api/blogs?t=${Date.now()}`, { cache: "no-store" });
       if (res.ok) setBlogs(await res.json());
     } catch (e) { console.error(e); }
   };
@@ -166,13 +169,19 @@ export default function AdminDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        showToast(editingBlog ? "Blog updated!" : "Blog created!");
-        setBlogForm({ title: "", category: "Home Loan", excerpt: "", content: "", slug: "" });
+        showToast(editingBlog ? "Blog updated successfully!" : "Blog created successfully!");
+        setBlogForm({ title: "", category: "Home Loan", excerpt: "", content: "", slug: "", imageUrl: "" });
         setEditingBlog(null);
         fetchBlogs();
+      } else {
+        showToast(data.error || "Failed to save blog.");
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      showToast("Error saving blog.");
+    }
   };
 
   const handleDeleteBlog = async (id) => {
@@ -264,6 +273,104 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleExportPDFBackup = () => {
+    try {
+      showToast("Generating PDF report...");
+      const doc = new jsPDF();
+
+      // Top Navy Header Banner
+      doc.setFillColor(7, 26, 61); // Navy #071A3D
+      doc.rect(0, 0, 210, 32, "F");
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("NILESH KUTE", 14, 15);
+
+      doc.setTextColor(217, 166, 46); // Gold #D9A62E
+      doc.setFontSize(10);
+      doc.text("Home Loan Consultancy — Customer Leads Report", 14, 23);
+
+      const dateStr = new Date().toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric"
+      });
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Date: ${dateStr}`, 196, 15, { align: "right" });
+      doc.text(`Total Records: ${leads.length}`, 196, 23, { align: "right" });
+
+      // Summary Statistics Box
+      let startY = 40;
+      doc.setFillColor(248, 250, 252);
+      doc.rect(14, startY, 182, 16, "F");
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(14, startY, 182, 16, "S");
+
+      doc.setTextColor(7, 26, 61);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+
+      const newCount = leads.filter(l => (l.status || "New") === "New").length;
+      const approvedCount = leads.filter(l => l.status === "Approved").length;
+
+      doc.text(`Total Leads: ${leads.length}`, 20, startY + 10);
+      doc.text(`New Inquiries: ${newCount}`, 82, startY + 10);
+      doc.text(`Approved Loans: ${approvedCount}`, 145, startY + 10);
+
+      // Customer Leads Table
+      const tableColumn = ["Date", "Customer Name", "Mobile", "Email", "Loan Type", "Status", "Notes"];
+      const tableRows = leads.map(l => [
+        l.createdAt ? new Date(l.createdAt).toLocaleDateString("en-IN") : "—",
+        l.name || "—",
+        l.phone || "—",
+        l.email || "—",
+        l.loanType || "—",
+        l.status || "New",
+        l.notes || "—"
+      ]);
+
+      autoTable(doc, {
+        startY: startY + 22,
+        head: [tableColumn],
+        body: tableRows,
+        theme: "grid",
+        headStyles: {
+          fillColor: [7, 26, 61],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          fontSize: 9
+        },
+        bodyStyles: {
+          fontSize: 8.5,
+          textColor: [30, 41, 59]
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252]
+        },
+        styles: {
+          cellPadding: 3,
+          overflow: "linebreak"
+        }
+      });
+
+      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 150;
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text("Confidential Customer Data Report • Nilesh Kute Home Loan Consultancy • Belapur, Navi Mumbai", 105, finalY + 15, { align: "center" });
+
+      const filename = `nileshkute_customer_leads_${new Date().toISOString().split("T")[0]}.pdf`;
+      doc.save(filename);
+      showToast("PDF report downloaded successfully!");
+    } catch (err) {
+      console.error("PDF generation error:", err);
+      showToast("Error generating PDF report.");
+    }
+  };
+
   const filteredLeads = leadFilter === "All" ? leads : leads.filter(l => l.status === leadFilter);
 
   const statusColors = {
@@ -285,127 +392,135 @@ export default function AdminDashboard() {
   if (!isLoggedIn) {
     return (
       <div style={{
-        maxWidth: "400px",
-        margin: "30px auto",
-        padding: "35px 30px",
+        maxWidth: "440px",
+        margin: "40px auto",
         background: "#FFFFFF",
-        borderRadius: "12px",
-        boxShadow: "0 10px 30px rgba(7, 26, 61, 0.12)",
-        border: "1px solid #E2E8F0"
+        borderRadius: "14px",
+        boxShadow: "0 20px 40px rgba(7, 26, 61, 0.12), 0 1px 3px rgba(0,0,0,0.05)",
+        border: "1px solid #E2E8F0",
+        overflow: "hidden"
       }}>
-        <div style={{ textAlign: "center", marginBottom: "25px" }}>
+        {/* Top Accent Line */}
+        <div style={{ height: "5px", background: "linear-gradient(90deg, #071A3D 0%, #D9A62E 100%)" }} />
+
+        <div style={{ padding: "40px 35px 35px 35px" }}>
+          <div style={{ textAlign: "center", marginBottom: "28px" }}>
+            <div style={{
+              width: "64px",
+              height: "64px",
+              background: "linear-gradient(135deg, #071A3D 0%, #0c285e 100%)",
+              color: "#D9A62E",
+              borderRadius: "16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "1.8rem",
+              margin: "0 auto 16px auto",
+              boxShadow: "0 8px 20px rgba(7, 26, 61, 0.2)"
+            }}>
+              🔐
+            </div>
+            <h2 style={{ color: "#071A3D", fontSize: "1.6rem", margin: 0, fontWeight: "800", letterSpacing: "-0.5px" }}>
+              Admin Portal
+            </h2>
+            <p style={{ color: "#64748B", fontSize: "0.88rem", marginTop: "6px" }}>
+              Nilesh Kute Home Loan Consultancy
+            </p>
+          </div>
+
+          {loginError && (
+            <div style={{
+              background: "#FEF2F2",
+              color: "#DC2626",
+              border: "1px solid #FCA5A5",
+              padding: "12px 16px",
+              borderRadius: "8px",
+              fontSize: "0.88rem",
+              marginBottom: "22px",
+              fontWeight: "600",
+              textAlign: "center"
+            }}>
+              ⚠️ {loginError}
+            </div>
+          )}
+
+          <form onSubmit={handleLoginSubmit}>
+            <div style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", fontSize: "0.88rem", fontWeight: "700", color: "#1E293B", marginBottom: "7px" }}>
+                Username / Admin ID
+              </label>
+              <input
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter your admin ID"
+                style={{
+                  width: "100%",
+                  padding: "12px 16px",
+                  border: "1.5px solid #CBD5E1",
+                  borderRadius: "8px",
+                  fontSize: "0.95rem",
+                  color: "#0F172A",
+                  outline: "none"
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "26px" }}>
+              <label style={{ display: "block", fontSize: "0.88rem", fontWeight: "700", color: "#1E293B", marginBottom: "7px" }}>
+                Password
+              </label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                style={{
+                  width: "100%",
+                  padding: "12px 16px",
+                  border: "1.5px solid #CBD5E1",
+                  borderRadius: "8px",
+                  fontSize: "0.95rem",
+                  color: "#0F172A",
+                  outline: "none"
+                }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              style={{
+                width: "100%",
+                background: "linear-gradient(135deg, #071A3D 0%, #0c285e 100%)",
+                color: "#D9A62E",
+                border: "none",
+                padding: "14px",
+                borderRadius: "8px",
+                fontWeight: "700",
+                fontSize: "1rem",
+                cursor: "pointer",
+                boxShadow: "0 4px 14px rgba(7, 26, 61, 0.25)",
+                letterSpacing: "0.5px"
+              }}
+            >
+              Sign In to Dashboard →
+            </button>
+          </form>
+
           <div style={{
-            width: "56px",
-            height: "56px",
-            background: "#071A3D",
-            color: "#D9A62E",
-            borderRadius: "50%",
+            marginTop: "28px",
+            textAlign: "center",
+            fontSize: "0.8rem",
+            color: "#94A3B8",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: "1.6rem",
-            margin: "0 auto 12px auto"
+            gap: "6px"
           }}>
-            👤
+            <span>🛡️</span> Protected Authorized Access Only
           </div>
-          <h2 style={{ color: "#071A3D", fontSize: "1.5rem", margin: 0, fontWeight: "700" }}>
-            Admin Login
-          </h2>
-          <p style={{ color: "#64748B", fontSize: "0.85rem", marginTop: "4px" }}>
-            Sign in to access Nilesh Kute Portfolio Admin Panel
-          </p>
-        </div>
-
-        {loginError && (
-          <div style={{
-            background: "#FEF2F2",
-            color: "#DC2626",
-            border: "1px solid #FCA5A5",
-            padding: "10px 14px",
-            borderRadius: "6px",
-            fontSize: "0.85rem",
-            marginBottom: "18px",
-            fontWeight: "600",
-            textAlign: "center"
-          }}>
-            {loginError}
-          </div>
-        )}
-
-        <form onSubmit={handleLoginSubmit}>
-          <div style={{ marginBottom: "16px" }}>
-            <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#334155", marginBottom: "6px" }}>
-              Username / ID
-            </label>
-            <input
-              type="text"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="e.g. admin"
-              style={{
-                width: "100%",
-                padding: "11px 14px",
-                border: "1px solid #CBD5E1",
-                borderRadius: "6px",
-                fontSize: "0.95rem",
-                outline: "none"
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: "22px" }}>
-            <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#334155", marginBottom: "6px" }}>
-              Password
-            </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              style={{
-                width: "100%",
-                padding: "11px 14px",
-                border: "1px solid #CBD5E1",
-                borderRadius: "6px",
-                fontSize: "0.95rem",
-                outline: "none"
-              }}
-            />
-          </div>
-
-          <button
-            type="submit"
-            style={{
-              width: "100%",
-              background: "#071A3D",
-              color: "#D9A62E",
-              border: "none",
-              padding: "12px",
-              borderRadius: "6px",
-              fontWeight: "700",
-              fontSize: "1rem",
-              cursor: "pointer",
-              boxShadow: "0 4px 12px rgba(7, 26, 61, 0.2)"
-            }}
-          >
-            Log In →
-          </button>
-        </form>
-
-        <div style={{
-          marginTop: "22px",
-          padding: "12px",
-          background: "#F8FAFC",
-          borderRadius: "6px",
-          border: "1px dashed #CBD5E1",
-          fontSize: "0.82rem",
-          color: "#475569",
-          textAlign: "center"
-        }}>
-          <strong>🔑 Credentials:</strong><br />
-          ID: <code style={{ background: "#E2E8F0", padding: "2px 6px", borderRadius: "3px", fontWeight: "600" }}>admin</code> | Password: <code style={{ background: "#E2E8F0", padding: "2px 6px", borderRadius: "3px", fontWeight: "600" }}>admin123</code>
         </div>
       </div>
     );
@@ -437,10 +552,9 @@ export default function AdminDashboard() {
           {[
             { id: "leads", label: "📊 Lead Management", count: leads.length },
             { id: "blogs", label: "📝 Blog Management", count: blogs.length },
-            { id: "images", label: "🖼️ Image Upload", count: images.length },
             { id: "editor", label: "✏️ Page Editor" },
             { id: "seo", label: "🔍 SEO Settings" },
-            { id: "backup", label: "💾 Backup & Restore" }
+            { id: "backup", label: "📄 PDF Export" }
           ].map(tab => (
             <button
               key={tab.id}
@@ -462,10 +576,9 @@ export default function AdminDashboard() {
           >
             <option value="leads">📊 Lead Management ({leads.length})</option>
             <option value="blogs">📝 Blog Management ({blogs.length})</option>
-            <option value="images">🖼️ Image Upload ({images.length})</option>
             <option value="editor">✏️ Page Editor</option>
             <option value="seo">🔍 SEO Settings</option>
-            <option value="backup">💾 Backup & Restore</option>
+            <option value="backup">📄 PDF Export</option>
           </select>
         </div>
 
@@ -667,6 +780,64 @@ export default function AdminDashboard() {
             </div>
 
             <div style={{ marginBottom: "15px" }}>
+              <label style={{ fontWeight: "600", fontSize: "0.9rem", display: "block", marginBottom: "5px" }}>Featured Cover Image URL</label>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                <input
+                  type="text"
+                  value={blogForm.imageUrl || ""}
+                  onChange={e => setBlogForm({ ...blogForm, imageUrl: e.target.value })}
+                  placeholder="e.g. /uploads/banner.jpg or https://..."
+                  style={{ flex: 1, minWidth: "220px", padding: "10px", borderRadius: "4px", border: "1px solid #CBD5E1" }}
+                />
+                <label style={{
+                  background: "#071A3D",
+                  color: "#D9A62E",
+                  padding: "10px 16px",
+                  borderRadius: "4px",
+                  fontWeight: "600",
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap"
+                }}>
+                  📷 Upload Image
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const formData = new FormData();
+                      formData.append("file", file);
+                      try {
+                        const res = await fetch("/api/upload", { method: "POST", body: formData });
+                        const data = await res.json();
+                        if (data.url) {
+                          setBlogForm({ ...blogForm, imageUrl: data.url });
+                          showToast("Cover image uploaded!");
+                        }
+                      } catch (err) {
+                        showToast("Failed to upload image.");
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+              {blogForm.imageUrl && (
+                <div style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "10px" }}>
+                  <img src={blogForm.imageUrl} alt="Preview" style={{ height: "70px", borderRadius: "6px", objectFit: "cover", border: "1px solid #CBD5E1" }} />
+                  <button
+                    type="button"
+                    onClick={() => setBlogForm({ ...blogForm, imageUrl: "" })}
+                    style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "0.78rem", cursor: "pointer" }}
+                  >
+                    Remove Image
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginBottom: "15px" }}>
               <label style={{ fontWeight: "600", fontSize: "0.9rem", display: "block", marginBottom: "5px" }}>Excerpt (Short Summary) *</label>
               <textarea
                 rows={2}
@@ -697,7 +868,7 @@ export default function AdminDashboard() {
               {editingBlog && (
                 <button
                   type="button"
-                  onClick={() => { setEditingBlog(null); setBlogForm({ title: "", category: "Home Loan", excerpt: "", content: "", slug: "" }); }}
+                  onClick={() => { setEditingBlog(null); setBlogForm({ title: "", category: "Home Loan", excerpt: "", content: "", slug: "", imageUrl: "" }); }}
                   style={{ background: "#E2E8F0", color: "#475569", padding: "10px 20px", borderRadius: "4px", border: "none", cursor: "pointer" }}
                 >
                   Cancel
@@ -710,15 +881,20 @@ export default function AdminDashboard() {
           <div style={{ display: "grid", gap: "15px" }}>
             {blogs.map(b => (
               <div key={b.id} style={{ background: "white", border: "1px solid #E2E8F0", padding: "20px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <span style={{ fontSize: "0.8rem", color: "#D9A62E", fontWeight: "700" }}>{b.category}</span>
-                  <h4 style={{ margin: "5px 0", color: "#071A3D" }}>{b.title}</h4>
-                  <p style={{ color: "#64748B", fontSize: "0.85rem", margin: 0 }}>{b.excerpt}</p>
+                <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
+                  {b.imageUrl && (
+                    <img src={b.imageUrl} alt={b.title} style={{ width: "70px", height: "70px", objectFit: "cover", borderRadius: "6px" }} />
+                  )}
+                  <div>
+                    <span style={{ fontSize: "0.8rem", color: "#D9A62E", fontWeight: "700" }}>{b.category}</span>
+                    <h4 style={{ margin: "5px 0", color: "#071A3D" }}>{b.title}</h4>
+                    <p style={{ color: "#64748B", fontSize: "0.85rem", margin: 0 }}>{b.excerpt}</p>
+                  </div>
                 </div>
                 <div style={{ display: "flex", gap: "10px" }}>
                   <button
                     type="button"
-                    onClick={() => { setEditingBlog(b); setBlogForm({ title: b.title, category: b.category, excerpt: b.excerpt, content: b.content, slug: b.slug }); }}
+                    onClick={() => { setEditingBlog(b); setBlogForm({ title: b.title, category: b.category, excerpt: b.excerpt, content: b.content, slug: b.slug, imageUrl: b.imageUrl || "" }); }}
                     style={{ background: "#e0f2fe", color: "#0284c7", border: "none", padding: "6px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "600" }}
                   >
                     Edit
@@ -737,62 +913,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* 3. IMAGE UPLOAD */}
-      {activeTab === "images" && (
-        <div>
-          <h2 style={{ color: "#071A3D", marginBottom: "5px" }}>Image Upload & Library</h2>
-          <p style={{ color: "#64748B", fontSize: "0.9rem", marginBottom: "25px" }}>Upload images for website banners, profile pictures, and blog articles.</p>
-
-          <div style={{ background: "#F8FAFC", padding: "30px", border: "2px dashed #CBD5E1", borderRadius: "8px", textAlign: "center", marginBottom: "30px" }}>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              id="imgUploadInput"
-              style={{ display: "none" }}
-            />
-            <label htmlFor="imgUploadInput" style={{ cursor: "pointer", display: "inline-block" }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: "10px" }}>📁</div>
-              <div style={{ fontWeight: "700", color: "#071A3D", marginBottom: "5px" }}>
-                {uploading ? "Uploading Image..." : "Click to Upload New Image"}
-              </div>
-              <span style={{ fontSize: "0.85rem", color: "#64748B" }}>Supports PNG, JPG, WEBP, SVG</span>
-            </label>
-          </div>
-
-          <h3 style={{ color: "#071A3D", marginBottom: "15px" }}>Uploaded Image Library</h3>
-          <div className={styles.imageGrid}>
-            {images.map((img, idx) => (
-              <div key={idx} style={{ background: "white", border: "1px solid #E2E8F0", borderRadius: "8px", overflow: "hidden" }}>
-                <img src={img.url} alt={img.name} style={{ width: "100%", height: "140px", objectFit: "cover" }} />
-                <div style={{ padding: "10px", textAlign: "center" }}>
-                  <div style={{ fontSize: "0.8rem", color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "8px" }}>
-                    {img.name}
-                  </div>
-                  <div style={{ display: "flex", gap: "6px" }}>
-                    <button
-                      type="button"
-                      onClick={() => { navigator.clipboard.writeText(img.url); showToast("Image URL copied to clipboard!"); }}
-                      style={{ background: "#071A3D", color: "#D9A62E", border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "0.8rem", cursor: "pointer", flex: 1 }}
-                    >
-                      Copy URL
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteImage(img.name)}
-                      style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "6px 10px", borderRadius: "4px", fontSize: "0.8rem", cursor: "pointer", fontWeight: "600" }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 4. PAGE EDITOR */}
+      {/* 3. PAGE EDITOR */}
       {activeTab === "editor" && (
         <form onSubmit={handleSaveSettings}>
           <h2 style={{ color: "#071A3D", marginBottom: "5px" }}>Page Content Editor</h2>
@@ -969,61 +1090,38 @@ export default function AdminDashboard() {
         </form>
       )}
 
-      {/* 6. BACKUP & RESTORE */}
+      {/* 5. PDF EXPORT */}
       {activeTab === "backup" && (
         <div>
-          <h2 style={{ color: "#071A3D", marginBottom: "5px" }}>Database Backup & Restore</h2>
-          <p style={{ color: "#64748B", fontSize: "0.9rem", marginBottom: "25px" }}>Export a backup copy of all leads, blogs, and settings or restore from a JSON file.</p>
+          <h2 style={{ color: "#071A3D", marginBottom: "5px" }}>Customer Leads PDF Export</h2>
+          <p style={{ color: "#64748B", fontSize: "0.9rem", marginBottom: "25px" }}>Download a clean PDF report of customer leads & loan applications directly to your computer.</p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "30px" }}>
-            {/* Export */}
-            <div style={{ background: "#F8FAFC", padding: "30px", borderRadius: "8px", border: "1px solid #E2E8F0", textAlign: "center" }}>
-              <div style={{ fontSize: "3rem", marginBottom: "15px" }}>📥</div>
-              <h3 style={{ color: "#071A3D", marginBottom: "10px" }}>Export Backup</h3>
-              <p style={{ color: "#64748B", fontSize: "0.85rem", marginBottom: "20px" }}>Download complete JSON backup file containing all leads, blog articles, and settings.</p>
-              <a
-                href="/api/backup"
-                download
+          <div style={{ maxWidth: "520px" }}>
+            <div style={{ background: "#F8FAFC", padding: "30px", borderRadius: "8px", border: "2px solid #D9A62E", textAlign: "center", boxShadow: "0 4px 15px rgba(7, 26, 61, 0.08)" }}>
+              <div style={{ fontSize: "3.2rem", marginBottom: "12px" }}>📄</div>
+              <h3 style={{ color: "#071A3D", marginBottom: "8px", fontSize: "1.25rem" }}>Export Customer PDF Report</h3>
+              <p style={{ color: "#64748B", fontSize: "0.88rem", marginBottom: "24px", lineHeight: "1.5" }}>
+                Downloads a formatted vector PDF document containing customer names, mobile numbers, loan types, follow-up status, and inquiry dates directly to your Downloads folder.
+              </p>
+              <button
+                type="button"
+                onClick={handleExportPDFBackup}
                 style={{
                   display: "inline-block",
                   background: "#071A3D",
                   color: "#D9A62E",
                   fontWeight: "700",
-                  padding: "12px 24px",
-                  borderRadius: "4px",
-                  textDecoration: "none"
+                  padding: "14px 24px",
+                  borderRadius: "6px",
+                  border: "none",
+                  cursor: "pointer",
+                  width: "100%",
+                  fontSize: "1rem",
+                  boxShadow: "0 4px 12px rgba(7, 26, 61, 0.2)"
                 }}
               >
-                Download Backup (.json)
-              </a>
-            </div>
-
-            {/* Import */}
-            <div style={{ background: "#F8FAFC", padding: "30px", borderRadius: "8px", border: "1px solid #E2E8F0", textAlign: "center" }}>
-              <div style={{ fontSize: "3rem", marginBottom: "15px" }}>📤</div>
-              <h3 style={{ color: "#071A3D", marginBottom: "10px" }}>Restore Backup</h3>
-              <p style={{ color: "#64748B", fontSize: "0.85rem", marginBottom: "20px" }}>Upload a previously exported `.json` backup file to restore database entries.</p>
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleRestoreBackup}
-                id="restoreFileInput"
-                style={{ display: "none" }}
-              />
-              <label
-                htmlFor="restoreFileInput"
-                style={{
-                  display: "inline-block",
-                  background: "#D9A62E",
-                  color: "#071A3D",
-                  fontWeight: "700",
-                  padding: "12px 24px",
-                  borderRadius: "4px",
-                  cursor: "pointer"
-                }}
-              >
-                Select Backup File to Restore
-              </label>
+                📄 Download Customer PDF Report
+              </button>
             </div>
           </div>
         </div>

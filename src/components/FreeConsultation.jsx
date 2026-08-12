@@ -10,10 +10,12 @@ export default function FreeConsultation() {
     message: ""
   });
   const [status, setStatus] = useState("idle");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus("submitting");
+    setErrorMessage("");
     
     try {
       const response = await fetch("/api/leads", {
@@ -22,15 +24,19 @@ export default function FreeConsultation() {
         body: JSON.stringify(formData),
       });
       
+      const resData = await response.json().catch(() => ({}));
+
       if (response.ok) {
         setStatus("success");
         setFormData({ name: "", mobile: "", loanType: "", message: "" });
       } else {
         setStatus("error");
+        setErrorMessage(resData.error || "Something went wrong. Please try again.");
       }
     } catch (error) {
       console.error(error);
       setStatus("error");
+      setErrorMessage("Network error. Please try again.");
     }
   };
 
@@ -52,8 +58,18 @@ export default function FreeConsultation() {
           ) : (
             <form onSubmit={handleSubmit} className={styles.form}>
               {status === "error" && (
-                <div style={{ color: "red", textAlign: "center", marginBottom: "10px" }}>
-                  Something went wrong. Please try again.
+                <div style={{
+                  background: "#FEF2F2",
+                  color: "#DC2626",
+                  border: "1px solid #FCA5A5",
+                  padding: "10px 14px",
+                  borderRadius: "6px",
+                  fontSize: "0.88rem",
+                  marginBottom: "15px",
+                  fontWeight: "600",
+                  textAlign: "center"
+                }}>
+                  ⚠️ {errorMessage || "Something went wrong. Please try again."}
                 </div>
               )}
               <div className={styles.inputGroup}>

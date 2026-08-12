@@ -65,6 +65,7 @@ function getDb() {
         excerpt TEXT NOT NULL,
         content TEXT NOT NULL,
         date TEXT NOT NULL,
+        imageUrl TEXT,
         createdAt TEXT DEFAULT (datetime('now'))
       );
 
@@ -74,6 +75,12 @@ function getDb() {
         updatedAt TEXT DEFAULT (datetime('now'))
       );
     `);
+
+    try {
+      db.exec("ALTER TABLE Blog ADD COLUMN imageUrl TEXT");
+    } catch (e) {
+      // Column already exists
+    }
 
     const defaultArticles = [
       {
@@ -277,18 +284,38 @@ export function createBlog(data) {
   const id = Math.random().toString(36).slice(2) + Date.now().toString(36);
   const slug = data.slug || data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   const stmt = db.prepare(`
-    INSERT INTO Blog (id, slug, title, category, excerpt, content, date)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO Blog (id, slug, title, category, excerpt, content, date, imageUrl)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  stmt.run(id, slug, data.title, data.category, data.excerpt, data.content, data.date || new Date().toISOString().split("T")[0]);
+  stmt.run(id, slug, data.title, data.category, data.excerpt, data.content, data.date || new Date().toISOString().split("T")[0], data.imageUrl || null);
   return { id, slug };
 }
 
 export function updateBlog(id, data) {
   const db = getDb();
-  db.prepare(`
-    UPDATE Blog SET title = ?, category = ?, excerpt = ?, content = ?, slug = ? WHERE id = ?
-  `).run(data.title, data.category, data.excerpt, data.content, data.slug, id);
+  const slug = (data.slug && data.slug.trim() !== "")
+    ? data.slug
+    : data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+  try {
+    db.prepare(`
+      UPDATE Blog SET title = ?, category = ?, excerpt = ?, content = ?, slug = ?, imageUrl = ? WHERE id = ?
+    `).run(data.title, data.category, data.excerpt, data.content, slug, data.imageUrl || null, id);
+  } catch (err) {
+    if (err.message && err.message.includes("no such column")) {
+      try {
+        db.exec("ALTER TABLE Blog ADD COLUMN imageUrl TEXT");
+        db.prepare(`
+          UPDATE Blog SET title = ?, category = ?, excerpt = ?, content = ?, slug = ?, imageUrl = ? WHERE id = ?
+        `).run(data.title, data.category, data.excerpt, data.content, slug, data.imageUrl || null, id);
+      } catch (retryErr) {
+        console.error("Failed to update blog:", retryErr);
+        throw retryErr;
+      }
+    } else {
+      throw err;
+    }
+  }
 }
 
 export function deleteBlog(id) {

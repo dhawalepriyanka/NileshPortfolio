@@ -26,6 +26,11 @@ export default function BlogPage() {
           <div className={styles.grid}>
             {articles.map((article, i) => (
               <article key={article.id || i} className={styles.blogCard}>
+                {article.imageUrl && (
+                  <div style={{ width: "100%", height: "180px", overflow: "hidden", borderRadius: "6px 6px 0 0", marginBottom: "15px" }}>
+                    <img src={article.imageUrl} alt={article.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
+                )}
                 <div className={styles.category}>{article.category}</div>
                 <h2 className={styles.blogTitle}>
                   <Link href={`/blog/${article.slug}`}>{article.title}</Link>

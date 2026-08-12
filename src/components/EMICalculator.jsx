@@ -3,9 +3,9 @@ import { useState, useEffect } from "react";
 import styles from "./EMICalculator.module.css";
 
 export default function EMICalculator() {
-  const [loanAmount, setLoanAmount] = useState(5000000); // 50 Lakhs default
-  const [interestRate, setInterestRate] = useState(8.5);
-  const [tenureYears, setTenureYears] = useState(20);
+  const [loanAmount, setLoanAmount] = useState("");
+  const [interestRate, setInterestRate] = useState("");
+  const [tenureYears, setTenureYears] = useState("");
   const [whatsapp, setWhatsapp] = useState("918356008675");
 
   const [emi, setEmi] = useState(0);
@@ -68,7 +68,6 @@ export default function EMICalculator() {
                 <input 
                   type="number" 
                   value={loanAmount} 
-                  placeholder="e.g. 5000000"
                   onChange={(e) => setLoanAmount(e.target.value === "" ? "" : Number(e.target.value))}
                   className={styles.numInput}
                 />
@@ -88,7 +87,6 @@ export default function EMICalculator() {
                 <input 
                   type="number" 
                   value={interestRate} 
-                  placeholder="e.g. 8.5"
                   onChange={(e) => setInterestRate(e.target.value === "" ? "" : Number(e.target.value))}
                   className={styles.numInput}
                   step="0.1"
@@ -109,7 +107,6 @@ export default function EMICalculator() {
                 <input 
                   type="number" 
                   value={tenureYears} 
-                  placeholder="e.g. 20"
                   onChange={(e) => setTenureYears(e.target.value === "" ? "" : Number(e.target.value))}
                   className={styles.numInput}
                 />

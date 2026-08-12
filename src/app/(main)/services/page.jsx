@@ -13,54 +13,77 @@ export async function generateMetadata() {
 
 const servicesList = [
   {
+    id: "home-loan",
     title: "Home Loan",
     desc: "Achieve your dream of owning a home with customized home loan solutions tailored to your financial profile.",
-    link: "/home-loan",
+    link: "/apply",
     icon: "🏠"
   },
   {
+    id: "balance-transfer",
     title: "Balance Transfer",
     desc: "Transfer your existing high-interest home loan to a lower interest rate to reduce your EMI burden.",
-    link: "/home-loan-balance-transfer",
+    link: "/apply",
     icon: "🔄"
   },
   {
+    id: "topup-loan",
     title: "Top-Up Loan",
     desc: "Get additional funds over your existing home loan for personal or professional needs at lower rates.",
-    link: "/top-up-loan",
+    link: "/apply",
     icon: "📈"
   },
   {
-    title: "Loan Against Property",
+    id: "lap",
+    title: "Loan Against Property (LAP)",
     desc: "Unlock the value of your property to secure funds for business expansion or major personal expenses.",
-    link: "/loan-against-property",
-    icon: "🏢"
+    link: "/apply",
+    icon: "🏛️"
   },
   {
+    id: "construction",
     title: "Home Construction Loan",
     desc: "Build your dream home on your plot with phase-wise disbursement based on construction progress.",
-    link: "/home-construction-loan",
+    link: "/apply",
     icon: "🏗️"
   },
   {
+    id: "renovation",
+    title: "Home Renovation Loan",
+    desc: "Renovate, repair, or extend your existing home with quick and affordable loan sanctions.",
+    link: "/apply",
+    icon: "🛠️"
+  },
+  {
+    id: "business-loan",
     title: "Business Loan",
     desc: "Fuel your business growth with collateral-free or secured business loans.",
-    link: "/business-loan",
+    link: "/apply",
     icon: "💼"
   },
   {
+    id: "personal",
     title: "Personal Loan",
     desc: "Quick, hassle-free personal loans for medical emergencies, weddings, or travel.",
-    link: "/personal-loan",
+    link: "/apply",
     icon: "💰"
   },
   {
+    id: "commercial",
+    title: "Commercial Property Loan",
+    desc: "Purchase shop, office space, or commercial property with competitive interest rates.",
+    link: "/apply",
+    icon: "🏢"
+  },
+  {
+    id: "medical-insurance",
     title: "Medical Insurance",
     desc: "Comprehensive health & medical insurance plans to protect you and your family against medical emergencies.",
     link: "/apply",
     icon: "🏥"
   },
   {
+    id: "mutual-funds",
     title: "Mutual Funds",
     desc: "Expert guidance for SIP & lump sum mutual fund investments to grow your wealth.",
     link: "/apply",
@@ -82,7 +105,7 @@ export default function ServicesPage() {
         <div className="container">
           <div className={styles.grid}>
             {servicesList.map((service, index) => (
-              <div key={index} className={styles.serviceCard}>
+              <div key={index} id={service.id} className={styles.serviceCard} style={{ scrollMarginTop: "100px" }}>
                 <div className={styles.icon}>{service.icon}</div>
                 <h3>{service.title}</h3>
                 <p>{service.desc}</p>
