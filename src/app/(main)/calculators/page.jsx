@@ -1,11 +1,10 @@
-﻿
+
 import EMICalculator from "@/components/EMICalculator";
-import EligibilityCalculator from "@/components/EligibilityCalculator";
 import styles from "./Calculators.module.css";
 
 export const metadata = {
-  title: "Loan Calculators | Nilesh Kute",
-  description: "Use our free EMI Calculator and Eligibility Calculator to plan your home loan. Get accurate estimates for monthly EMI and loan eligibility.",
+  title: "EMI Calculator | Nilesh Kute",
+  description: "Use our free Home Loan EMI Calculator to plan your finances and view your complete repayment schedule.",
 };
 
 export default function CalculatorsPage() {
@@ -13,14 +12,13 @@ export default function CalculatorsPage() {
     <div className={styles.main}>
       <section className={styles.hero}>
         <div className="container text-center">
-          <h1 className={styles.title}>Loan Calculators</h1>
-          <p className={styles.subtitle}>Plan your finances with our easy-to-use tools. Results are indicative estimates.</p>
+          <h1 className={styles.title}>Home Loan EMI Calculator</h1>
+          <p className={styles.subtitle}>Plan your finances with accurate monthly EMI estimates and detailed repayment schedules.</p>
         </div>
       </section>
 
       <div className={styles.calcSection}>
         <EMICalculator />
-        <EligibilityCalculator />
       </div>
     </div>
   );

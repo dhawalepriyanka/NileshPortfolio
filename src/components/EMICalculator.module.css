@@ -1,107 +1,437 @@
-.calculatorWrapper {
-  display: flex;
-  gap: 40px;
-  background: var(--white);
-  padding: 40px;
-  border-radius: 8px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-  border-top: 4px solid var(--primary-navy);
+.calculatorSection {
+  padding: 40px 0 60px;
 }
 
-.inputSection {
-  flex: 3;
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Base Card */
+.card {
+  background: var(--white);
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 28px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(7, 26, 61, 0.05);
+}
+
+/* Section Title */
+.title {
+  background: #F8FAFC;
+  border-left: 4px solid var(--gold);
+  border-radius: 6px;
+  padding: 12px 18px;
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--primary-navy);
+  margin-bottom: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.titleNavy {
+  background: var(--primary-navy);
+  color: var(--white);
+  border-left: 4px solid var(--gold);
+}
+
+.liveBadge {
+  font-size: 0.75rem;
+  background: rgba(217, 166, 46, 0.15);
+  color: #B4831B;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* Grid Layout */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.inputGroup {
   display: flex;
   flex-direction: column;
-  gap: 30px;
-}
-
-.resultSection {
-  flex: 2;
 }
 
 .inputGroup label {
-  display: block;
+  font-size: 0.88rem;
   font-weight: 600;
   color: var(--primary-navy);
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
-.rangeWrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.numInput {
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--primary-navy);
-  width: 150px;
-}
-
-.rangeInput {
+.inputField {
   width: 100%;
-  accent-color: var(--gold);
+  padding: 12px 14px;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  background: var(--white);
+  color: var(--dark-text);
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.resultCard {
-  background-color: var(--light-bg);
-  padding: 30px;
-  border-radius: 8px;
-  text-align: center;
-  height: 100%;
+.inputField:focus {
+  border-color: var(--primary-navy);
+  box-shadow: 0 0 0 3px rgba(7, 26, 61, 0.1);
+}
+
+.datebox {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  gap: 8px;
 }
 
-.resultCard h4 {
+.datebox input {
+  min-width: 0;
+}
+
+.calbtn {
+  width: 46px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border-radius: 6px;
+  background: #F1F5F9;
   color: var(--primary-navy);
-  margin-bottom: 15px;
-}
-
-.resultMain {
-  font-size: 2.5rem;
-  font-weight: 800;
-  color: var(--gold);
-  margin-bottom: 30px;
-}
-
-.resultSub {
+  border: 1.5px solid #CBD5E1;
+  font-size: 1.2rem;
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
-  gap: 15px;
-  margin-bottom: 30px;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
 }
 
-.subItem {
+.calbtn:hover {
+  background: #E2E8F0;
+  border-color: var(--primary-navy);
+  transform: none;
+  box-shadow: none;
+}
+
+/* Action Buttons */
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+  align-items: center;
+}
+
+.btnPrimary {
+  background-color: var(--gold);
+  color: var(--white);
+  padding: 12px 22px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btnPrimary:hover {
+  background-color: #c49428;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(217, 166, 46, 0.3);
+}
+
+.btnReset {
+  background-color: #F1F5F9;
+  color: #475569;
+  border: 1px solid #CBD5E1;
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btnReset:hover {
+  background-color: #E2E8F0;
+  color: #1E293B;
+  transform: none;
+  box-shadow: none;
+}
+
+.btnPDF {
+  background-color: var(--primary-navy);
+  color: var(--white);
+  padding: 12px 22px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btnPDF:hover {
+  background-color: var(--secondary-navy);
+  color: var(--gold);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(7, 26, 61, 0.25);
+}
+
+.btnWhatsApp {
+  background-color: #25D366;
+  color: var(--white);
+  padding: 12px 22px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btnWhatsApp:hover {
+  background-color: #1EBE5D;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+}
+
+.status {
+  font-size: 0.88rem;
+  color: #0284C7;
+  font-weight: 600;
+  min-height: 20px;
+  margin-top: 12px;
+}
+
+/* EMI Details Layout */
+.detailsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: stretch;
+}
+
+.kvGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  background: #F8FAFC;
+  padding: 18px;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+}
+
+.item {
+  padding: 6px 0;
+  border-bottom: 1px solid #E2E8F0;
+  min-width: 0;
+}
+
+.item span {
+  display: block;
+  font-size: 0.78rem;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+.item b {
+  font-size: 1rem;
+  color: var(--primary-navy);
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+/* Main EMI Highlight Box */
+.emiBanner {
+  margin-top: 16px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-navy) 100%);
+  border-radius: 8px;
+  color: var(--white);
   display: flex;
   justify-content: space-between;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #ddd;
+  align-items: center;
+  box-shadow: 0 6px 18px rgba(7, 26, 61, 0.15);
 }
 
-.ctaBox {
-  margin-top: auto;
+.emiBanner span {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
 }
 
-.ctaBox p {
-  font-size: 0.9rem;
-  margin-bottom: 15px;
+.emiBanner b {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: var(--gold);
 }
 
-.ctaButtons {
+/* Summary Cards (Right Side) */
+.summaryCards {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 14px;
   justify-content: center;
+}
+
+.summaryCard {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.summaryCardLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--primary-navy);
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dotPrincipal {
+  background-color: var(--primary-navy);
+}
+
+.dotInterest {
+  background-color: var(--gold);
+}
+
+.dotTotal {
+  background-color: #0284C7;
+}
+
+.summaryCardValue {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--dark-text);
+}
+
+/* Table Repayment Schedule */
+.tablewrap {
+  overflow-x: auto;
+  border-radius: 8px;
+  max-height: 480px;
+  border: 1px solid #E2E8F0;
+}
+
+.scheduleTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 580px;
+}
+
+.scheduleTable th {
+  background: var(--primary-navy);
+  color: var(--white);
+  padding: 12px 14px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-align: right;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  letter-spacing: 0.3px;
+}
+
+.scheduleTable td {
+  border-bottom: 1px solid #E2E8F0;
+  border-right: 1px solid #F1F5F9;
+  padding: 9px 14px;
+  font-size: 0.88rem;
+  text-align: right;
+  color: #334155;
+}
+
+.scheduleTable tr:nth-child(even) td {
+  background: #F8FAFC;
+}
+
+.scheduleTable th:first-child,
+.scheduleTable td:first-child {
+  text-align: center;
+  border-left: none;
+}
+
+.yearRow td {
+  font-weight: 800;
+  background: #FEF3C7 !important;
+  color: #92400E !important;
+  border-top: 1.5px solid #FDE68A;
+  border-bottom: 1.5px solid #FDE68A;
+}
+
+.note {
+  text-align: center;
+  color: #64748B;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin-top: 18px;
+}
+
+.note b {
+  color: var(--primary-navy);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .detailsGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
-  .calculatorWrapper {
-    flex-direction: column;
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .card {
     padding: 20px;
+  }
+  .actions button {
+    flex: 1 1 calc(50% - 6px);
+  }
+}
+
+@media (max-width: 520px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .kvGrid {
+    grid-template-columns: 1fr;
+  }
+  .actions button {
+    flex: 1 1 100%;
+  }
+  .emiBanner {
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
   }
 }
