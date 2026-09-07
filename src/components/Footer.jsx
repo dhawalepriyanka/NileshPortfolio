@@ -50,6 +50,7 @@ export default function Footer() {
               <li><Link href="/about">About Nilesh</Link></li>
               <li><Link href="/services">Loan Services</Link></li>
               <li><Link href="/calculators">Calculators</Link></li>
+              <li><Link href="/reviews">Customer Reviews</Link></li>
               <li><Link href="/documents-required">Documents Checklist</Link></li>
               <li><Link href="/cibil-guide">CIBIL Score Guide</Link></li>
               <li><Link href="/blog">Blogs & Guides</Link></li>

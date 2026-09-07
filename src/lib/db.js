@@ -74,6 +74,17 @@ function getDb() {
         value TEXT NOT NULL,
         updatedAt TEXT DEFAULT (datetime('now'))
       );
+
+      CREATE TABLE IF NOT EXISTS Testimonial (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        rating INTEGER DEFAULT 5,
+        testimonial TEXT NOT NULL,
+        loanType TEXT,
+        location TEXT,
+        date TEXT NOT NULL,
+        createdAt TEXT DEFAULT (datetime('now'))
+      );
     `);
 
     try {
@@ -185,6 +196,71 @@ function getDb() {
     `);
     for (const a of defaultArticles) {
       insert.run(a.id, a.slug, a.title, a.category, a.excerpt, a.content, a.date);
+    }
+
+    const defaultReviews = [
+      {
+        id: "rev-1",
+        name: "Rahul Sharma",
+        rating: 5,
+        testimonial: "Nilesh Kute made our home loan process completely stress-free! As an IT professional with multiple variable income components, banks were making calculations complicated. Nilesh sir compared PSU and private banks, got us 8.40% ROI, and managed the entire paperwork at our doorstep in Kharghar. Highly recommended!",
+        loanType: "Home Loan (₹65 Lakhs)",
+        location: "Kharghar, Navi Mumbai",
+        date: "2026-08-14"
+      },
+      {
+        id: "rev-2",
+        name: "Priya & Sandeep Patil",
+        rating: 5,
+        testimonial: "We were paying 9.65% interest on our existing home loan. Nilesh helped us do a Balance Transfer to another bank at 8.35% with an additional ₹15 Lakhs top-up loan for home renovation. Our monthly EMI dropped significantly, saving us lakhs in long-term interest.",
+        loanType: "Balance Transfer + Top-Up",
+        location: "CBD Belapur",
+        date: "2026-07-28"
+      },
+      {
+        id: "rev-3",
+        name: "Dr. Amit Deshmukh",
+        rating: 5,
+        testimonial: "As a practicing doctor, I needed a Loan Against Property (LAP) for setting up diagnostic equipment at my clinic. Nilesh's deep banking connections and transparent guidance helped get the loan sanctioned within just 7 working days with zero hidden charges.",
+        loanType: "Loan Against Property (LAP)",
+        location: "Vashi, Navi Mumbai",
+        date: "2026-07-15"
+      },
+      {
+        id: "rev-4",
+        name: "Sneha Verma (NRI)",
+        rating: 5,
+        testimonial: "Being an NRI living in Dubai, coordinating property papers in Mumbai seemed daunting. Nilesh coordinated power of attorney requirements, builder legal verification, and bank disbursement seamlessly without me having to travel to India multiple times. Truly 5-star service!",
+        loanType: "NRI Home Loan",
+        location: "Seawoods, Navi Mumbai",
+        date: "2026-06-30"
+      },
+      {
+        id: "rev-5",
+        name: "Rajesh Gupta",
+        rating: 5,
+        testimonial: "Got quick business loan funding for expanding my retail store inventory before festival season. Transparent terms, minimal paperwork, and quick turnaround. Nilesh is genuine and always puts the client's financial interest first.",
+        loanType: "Business Loan",
+        location: "Panvel",
+        date: "2026-06-12"
+      },
+      {
+        id: "rev-6",
+        name: "Vikram & Neha Nair",
+        rating: 5,
+        testimonial: "We bought our first 2BHK flat in Ulwe and had no prior experience with bank loans or PMAY subsidy rules. Nilesh guided us through each step from CIBIL check to final disbursement. His 11+ years of experience really shows in his professionalism!",
+        loanType: "First-Time Home Buyer Loan",
+        location: "Ulwe, Navi Mumbai",
+        date: "2026-05-22"
+      }
+    ];
+
+    const insertReview = db.prepare(`
+      INSERT OR IGNORE INTO Testimonial (id, name, rating, testimonial, loanType, location, date)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const r of defaultReviews) {
+      insertReview.run(r.id, r.name, r.rating, r.testimonial, r.loanType, r.location, r.date);
     }
   }
   return db;
@@ -321,6 +397,36 @@ export function updateBlog(id, data) {
 export function deleteBlog(id) {
   const db = getDb();
   db.prepare("DELETE FROM Blog WHERE id = ?").run(id);
+}
+
+// --- TESTIMONIALS / CUSTOMER REVIEWS ---
+export function getAllTestimonials() {
+  const db = getDb();
+  return db.prepare("SELECT * FROM Testimonial ORDER BY date DESC, createdAt DESC").all();
+}
+
+export function createTestimonial(data) {
+  const db = getDb();
+  const id = "rev-" + Math.random().toString(36).slice(2, 8) + Date.now().toString(36);
+  const stmt = db.prepare(`
+    INSERT INTO Testimonial (id, name, rating, testimonial, loanType, location, date)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  stmt.run(
+    id,
+    data.name,
+    Number(data.rating) || 5,
+    data.testimonial,
+    data.loanType || "Home Loan",
+    data.location || "Navi Mumbai",
+    data.date || new Date().toISOString().split("T")[0]
+  );
+  return { id };
+}
+
+export function deleteTestimonial(id) {
+  const db = getDb();
+  db.prepare("DELETE FROM Testimonial WHERE id = ?").run(id);
 }
 
 // --- SETTINGS & SEO ---

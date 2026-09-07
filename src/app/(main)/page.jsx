@@ -59,13 +59,13 @@ export default function Home() {
               className={styles.heroImage}
               priority
             />
-            <div className={styles.floatingCard}>
+            <Link href="/reviews" className={styles.floatingCard} title="View all customer reviews">
               <div className={styles.floatingCardIcon}>⭐</div>
               <div className={styles.floatingCardText}>
                 <h4>4.9 / 5 Rating</h4>
                 <p>1,000+ Happy Families Assisted</p>
               </div>
-            </div>
+            </Link>
           </div>
         </div>
       </section>

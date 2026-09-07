@@ -27,6 +27,7 @@ export default function Navbar() {
     { name: "About", path: "/about" },
     { name: "Services", path: "/services" },
     { name: "Calculators", path: "/calculators" },
+    { name: "Reviews", path: "/reviews" },
     { name: "Documents", path: "/documents-required" },
     { name: "CIBIL Guide", path: "/cibil-guide" },
     { name: "Blogs", path: "/blog" },

@@ -21,6 +21,7 @@ export default function AdminDashboard() {
   const [leadFilter, setLeadFilter] = useState("All");
   const [blogs, setBlogs] = useState([]);
   const [images, setImages] = useState([]);
+  const [testimonials, setTestimonials] = useState([]);
   const [settings, setSettings] = useState({
     siteTitle: "Nilesh Kute - Home Loan Consultant",
     phone: "8356008675",
@@ -70,6 +71,7 @@ export default function AdminDashboard() {
       fetchBlogs();
       fetchImages();
       fetchSettings();
+      fetchTestimonials();
     }
     setIsCheckingAuth(false);
   }, []);
@@ -88,6 +90,7 @@ export default function AdminDashboard() {
       fetchBlogs();
       fetchImages();
       fetchSettings();
+      fetchTestimonials();
     } else {
       setLoginError("Invalid Username or Password. Please try again.");
     }
@@ -128,6 +131,24 @@ export default function AdminDashboard() {
         if (Object.keys(data).length > 0) {
           setSettings(prev => ({ ...prev, ...data }));
         }
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchTestimonials = async () => {
+    try {
+      const res = await fetch(`/api/testimonials?t=${Date.now()}`, { cache: "no-store" });
+      if (res.ok) setTestimonials(await res.json());
+    } catch (e) { console.error(e); }
+  };
+
+  const handleDeleteTestimonial = async (id) => {
+    if (!confirm("Are you sure you want to delete this customer review?")) return;
+    try {
+      const res = await fetch(`/api/testimonials?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast("Review deleted successfully!");
+        fetchTestimonials();
       }
     } catch (e) { console.error(e); }
   };
@@ -552,6 +573,7 @@ export default function AdminDashboard() {
           {[
             { id: "leads", label: "📊 Lead Management", count: leads.length },
             { id: "blogs", label: "📝 Blog Management", count: blogs.length },
+            { id: "reviews", label: "⭐ Reviews", count: testimonials.length },
             { id: "editor", label: "✏️ Page Editor" },
             { id: "seo", label: "🔍 SEO Settings" },
             { id: "backup", label: "📄 PDF Export" }
@@ -576,6 +598,7 @@ export default function AdminDashboard() {
           >
             <option value="leads">📊 Lead Management ({leads.length})</option>
             <option value="blogs">📝 Blog Management ({blogs.length})</option>
+            <option value="reviews">⭐ Customer Reviews ({testimonials.length})</option>
             <option value="editor">✏️ Page Editor</option>
             <option value="seo">🔍 SEO Settings</option>
             <option value="backup">📄 PDF Export</option>
@@ -1090,7 +1113,96 @@ export default function AdminDashboard() {
         </form>
       )}
 
-      {/* 5. PDF EXPORT */}
+      {/* 5. CUSTOMER REVIEWS MANAGEMENT */}
+      {activeTab === "reviews" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "15px" }}>
+            <div>
+              <h2 style={{ color: "#071A3D", margin: 0 }}>Customer Reviews &amp; Testimonials</h2>
+              <p style={{ color: "#64748B", fontSize: "0.9rem" }}>Manage customer reviews displayed on the website.</p>
+            </div>
+            <Link
+              href="/reviews"
+              target="_blank"
+              style={{
+                background: "#071A3D",
+                color: "#D9A62E",
+                padding: "8px 16px",
+                borderRadius: "6px",
+                fontWeight: "700",
+                fontSize: "0.85rem",
+                textDecoration: "none"
+              }}
+            >
+              View Reviews Page ↗
+            </Link>
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", minWidth: "850px" }}>
+              <thead>
+                <tr style={{ backgroundColor: "#F8FAFC", borderBottom: "2px solid #E2E8F0" }}>
+                  <th style={{ padding: "12px" }}>Date</th>
+                  <th style={{ padding: "12px" }}>Customer Name</th>
+                  <th style={{ padding: "12px" }}>Rating</th>
+                  <th style={{ padding: "12px" }}>Loan Type &amp; City</th>
+                  <th style={{ padding: "12px" }}>Review Text</th>
+                  <th style={{ padding: "12px" }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {testimonials.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ padding: "40px", textAlign: "center", color: "#94A3B8" }}>
+                      No reviews found.
+                    </td>
+                  </tr>
+                ) : (
+                  testimonials.map((rev) => (
+                    <tr key={rev.id} style={{ borderBottom: "1px solid #F1F5F9" }}>
+                      <td style={{ padding: "12px", fontSize: "0.85rem", color: "#64748B", whiteSpace: "nowrap" }}>
+                        {rev.date || "—"}
+                      </td>
+                      <td style={{ padding: "12px", fontWeight: "700", color: "#071A3D" }}>{rev.name}</td>
+                      <td style={{ padding: "12px", color: "#D9A62E", fontWeight: "700", fontSize: "1rem" }}>
+                        {"★".repeat(rev.rating || 5)}
+                      </td>
+                      <td style={{ padding: "12px", fontSize: "0.88rem" }}>
+                        <span style={{ fontWeight: "600", color: "#071A3D" }}>{rev.loanType}</span>
+                        <div style={{ fontSize: "0.8rem", color: "#64748B" }}>📍 {rev.location}</div>
+                      </td>
+                      <td style={{ padding: "12px", fontSize: "0.88rem", color: "#334155", maxWidth: "340px", lineHeight: "1.5" }}>
+                        &ldquo;{rev.testimonial}&rdquo;
+                      </td>
+                      <td style={{ padding: "12px" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTestimonial(rev.id)}
+                          style={{
+                            background: "#fee2e2",
+                            color: "#dc2626",
+                            border: "none",
+                            padding: "6px 12px",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontWeight: "600",
+                            fontSize: "0.8rem",
+                            transform: "none"
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* 6. PDF EXPORT */}
       {activeTab === "backup" && (
         <div>
           <h2 style={{ color: "#071A3D", marginBottom: "5px" }}>Customer Leads PDF Export</h2>
