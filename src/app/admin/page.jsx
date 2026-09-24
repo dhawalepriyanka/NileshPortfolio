@@ -571,7 +571,7 @@ export default function AdminDashboard() {
         {/* Desktop Tab Navigation */}
         <div className={styles.desktopTabNav}>
           {[
-            { id: "leads", label: "📊 Lead Management", count: leads.length },
+            { id: "leads", label: "📩 Enquiry Management", count: leads.length },
             { id: "blogs", label: "📝 Blog Management", count: blogs.length },
             { id: "reviews", label: "⭐ Reviews", count: testimonials.length },
             { id: "editor", label: "✏️ Page Editor" },
@@ -596,7 +596,7 @@ export default function AdminDashboard() {
             onChange={(e) => setActiveTab(e.target.value)}
             className={styles.mobileTabSelect}
           >
-            <option value="leads">📊 Lead Management ({leads.length})</option>
+            <option value="leads">📩 Enquiry Management ({leads.length})</option>
             <option value="blogs">📝 Blog Management ({blogs.length})</option>
             <option value="reviews">⭐ Customer Reviews ({testimonials.length})</option>
             <option value="editor">✏️ Page Editor</option>
@@ -625,13 +625,13 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      {/* 1. LEAD MANAGEMENT */}
+      {/* 1. ENQUIRY MANAGEMENT */}
       {activeTab === "leads" && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "15px" }}>
             <div>
-              <h2 style={{ color: "#071A3D", margin: 0 }}>Lead Management</h2>
-              <p style={{ color: "#64748B", fontSize: "0.9rem" }}>Manage customer loan inquiries and update follow-up statuses.</p>
+              <h2 style={{ color: "#071A3D", margin: 0 }}>Enquiry Management</h2>
+              <p style={{ color: "#64748B", fontSize: "0.9rem" }}>Manage customer loan enquiries and update follow-up statuses.</p>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <label style={{ fontWeight: "700", fontSize: "0.88rem", color: "#071A3D", whiteSpace: "nowrap" }}>
@@ -653,7 +653,7 @@ export default function AdminDashboard() {
                   boxShadow: "0 2px 8px rgba(7, 26, 61, 0.12)"
                 }}
               >
-                <option value="All" style={{ background: "#fff", color: "#071A3D" }}>All Leads ({leads.length})</option>
+                <option value="All" style={{ background: "#fff", color: "#071A3D" }}>All Enquiries ({leads.length})</option>
                 <option value="New" style={{ background: "#fff", color: "#0284c7" }}>New ({leads.filter(l => l.status === "New").length})</option>
                 <option value="Contacted" style={{ background: "#fff", color: "#b45309" }}>Contacted ({leads.filter(l => l.status === "Contacted").length})</option>
                 <option value="Follow-up" style={{ background: "#fff", color: "#c2410c" }}>Follow-up ({leads.filter(l => l.status === "Follow-up").length})</option>
@@ -681,7 +681,7 @@ export default function AdminDashboard() {
                 {filteredLeads.length === 0 ? (
                   <tr>
                     <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "#94A3B8" }}>
-                      No leads found in this filter category.
+                      No enquiries found in this filter category.
                     </td>
                   </tr>
                 ) : (
@@ -1205,13 +1205,13 @@ export default function AdminDashboard() {
       {/* 6. PDF EXPORT */}
       {activeTab === "backup" && (
         <div>
-          <h2 style={{ color: "#071A3D", marginBottom: "5px" }}>Customer Leads PDF Export</h2>
-          <p style={{ color: "#64748B", fontSize: "0.9rem", marginBottom: "25px" }}>Download a clean PDF report of customer leads & loan applications directly to your computer.</p>
+          <h2 style={{ color: "#071A3D", marginBottom: "5px" }}>Customer Enquiries PDF Export</h2>
+          <p style={{ color: "#64748B", fontSize: "0.9rem", marginBottom: "25px" }}>Download a clean PDF report of customer enquiries & loan applications directly to your computer.</p>
 
           <div style={{ maxWidth: "520px" }}>
             <div style={{ background: "#F8FAFC", padding: "30px", borderRadius: "8px", border: "2px solid #D9A62E", textAlign: "center", boxShadow: "0 4px 15px rgba(7, 26, 61, 0.08)" }}>
               <div style={{ fontSize: "3.2rem", marginBottom: "12px" }}>📄</div>
-              <h3 style={{ color: "#071A3D", marginBottom: "8px", fontSize: "1.25rem" }}>Export Customer PDF Report</h3>
+              <h3 style={{ color: "#071A3D", marginBottom: "8px", fontSize: "1.25rem" }}>Export Customer Enquiries PDF Report</h3>
               <p style={{ color: "#64748B", fontSize: "0.88rem", marginBottom: "24px", lineHeight: "1.5" }}>
                 Downloads a formatted vector PDF document containing customer names, mobile numbers, loan types, follow-up status, and inquiry dates directly to your Downloads folder.
               </p>

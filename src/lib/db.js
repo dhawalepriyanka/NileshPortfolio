@@ -1,6 +1,26 @@
-const Database = require("better-sqlite3");
 import path from "path";
 import fs from "fs";
+import { DatabaseSync } from "node:sqlite";
+
+const Database = function (dbPath) {
+  const instance = new DatabaseSync(dbPath);
+  if (!instance.transaction) {
+    instance.transaction = function (fn) {
+      return function (...args) {
+        instance.exec("BEGIN");
+        try {
+          const res = fn(...args);
+          instance.exec("COMMIT");
+          return res;
+        } catch (err) {
+          instance.exec("ROLLBACK");
+          throw err;
+        }
+      };
+    };
+  }
+  return instance;
+};
 
 let db;
 
