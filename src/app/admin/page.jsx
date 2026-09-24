@@ -104,7 +104,7 @@ export default function AdminDashboard() {
 
   const fetchLeads = async () => {
     try {
-      const res = await fetch("/api/leads");
+      const res = await fetch(`/api/leads?t=${Date.now()}`, { cache: "no-store" });
       if (res.ok) setLeads(await res.json());
     } catch (e) { console.error(e); }
   };
@@ -118,7 +118,7 @@ export default function AdminDashboard() {
 
   const fetchImages = async () => {
     try {
-      const res = await fetch("/api/upload");
+      const res = await fetch(`/api/upload?t=${Date.now()}`, { cache: "no-store" });
       if (res.ok) setImages(await res.json());
     } catch (e) { console.error(e); }
   };
@@ -144,13 +144,21 @@ export default function AdminDashboard() {
 
   const handleDeleteTestimonial = async (id) => {
     if (!confirm("Are you sure you want to delete this customer review?")) return;
+    setTestimonials(prev => prev.filter(r => r.id !== id));
     try {
-      const res = await fetch(`/api/testimonials?id=${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/testimonials?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       if (res.ok) {
         showToast("Review deleted successfully!");
         fetchTestimonials();
+      } else {
+        showToast("Failed to delete review.");
+        fetchTestimonials();
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      showToast("Error deleting review.");
+      fetchTestimonials();
+    }
   };
 
   // Lead actions
@@ -162,21 +170,31 @@ export default function AdminDashboard() {
         body: JSON.stringify({ id, status, notes })
       });
       if (res.ok) {
-        showToast("Lead status updated!");
+        showToast("Enquiry status updated!");
         fetchLeads();
       }
     } catch (e) { console.error(e); }
   };
 
   const handleDeleteLead = async (id) => {
-    if (!confirm("Are you sure you want to delete this lead?")) return;
+    if (!confirm("Are you sure you want to delete this enquiry?")) return;
+    // Optimistically remove from state immediately so it disappears right away
+    setLeads(prev => prev.filter(l => l.id !== id));
     try {
-      const res = await fetch(`/api/leads?id=${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/leads?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       if (res.ok) {
-        showToast("Lead deleted!");
+        showToast("Enquiry deleted successfully!");
+        fetchLeads();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || "Failed to delete enquiry.");
         fetchLeads();
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      showToast("Error deleting enquiry.");
+      fetchLeads();
+    }
   };
 
   // Blog actions
