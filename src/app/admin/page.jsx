@@ -6,6 +6,18 @@ import styles from "./Admin.module.css";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+function getYouTubeEmbedUrl(url) {
+  if (!url) return null;
+  const match = url.match(/(?:youtube(?:-nocookie)?\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?|shorts)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return match && match[1] ? `https://www.youtube-nocookie.com/embed/${match[1]}` : null;
+}
+
+function getYouTubeThumbnail(url) {
+  if (!url) return "";
+  const match = url.match(/(?:youtube(?:-nocookie)?\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?|shorts)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return match && match[1] ? `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg` : "";
+}
+
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("leads");
 
@@ -20,6 +32,8 @@ export default function AdminDashboard() {
   const [leads, setLeads] = useState([]);
   const [leadFilter, setLeadFilter] = useState("All");
   const [blogs, setBlogs] = useState([]);
+  const [blogFilter, setBlogFilter] = useState("all"); // "all" | "video" | "standard"
+  const [articleFormat, setArticleFormat] = useState("standard"); // "standard" | "video"
   const [images, setImages] = useState([]);
   const [testimonials, setTestimonials] = useState([]);
   const [settings, setSettings] = useState({
@@ -51,8 +65,23 @@ export default function AdminDashboard() {
     excerpt: "",
     content: "",
     slug: "",
-    imageUrl: ""
+    imageUrl: "",
+    youtubeUrl: ""
   });
+
+  // Generate / Add Enquiry Modal
+  const [showAddLeadModal, setShowAddLeadModal] = useState(false);
+  const [newLeadForm, setNewLeadForm] = useState({
+    name: "",
+    mobile: "",
+    loanType: "Home Loan",
+    loanAmount: "",
+    city: "",
+    source: "Phone Call",
+    status: "New",
+    notes: ""
+  });
+  const [isSubmittingLead, setIsSubmittingLead] = useState(false);
 
   // Notifications
   const [toast, setToast] = useState("");
@@ -197,6 +226,58 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleCreateLeadSubmit = async (e) => {
+    e.preventDefault();
+    if (!newLeadForm.name || !newLeadForm.mobile || !newLeadForm.loanType) {
+      showToast("Please fill all required fields.");
+      return;
+    }
+    if (!/^\d{10}$/.test(newLeadForm.mobile.trim())) {
+      showToast("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+    setIsSubmittingLead(true);
+    try {
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newLeadForm.name.trim(),
+          phone: newLeadForm.mobile.trim(),
+          mobile: newLeadForm.mobile.trim(),
+          loanType: newLeadForm.loanType,
+          loanAmount: newLeadForm.loanAmount.trim() || undefined,
+          city: newLeadForm.city.trim() || undefined,
+          source: newLeadForm.source,
+          status: newLeadForm.status,
+          message: newLeadForm.notes.trim() || undefined
+        })
+      });
+      if (res.ok) {
+        showToast("Enquiry generated successfully!");
+        setNewLeadForm({
+          name: "",
+          mobile: "",
+          loanType: "Home Loan",
+          loanAmount: "",
+          city: "",
+          source: "Phone Call",
+          status: "New",
+          notes: ""
+        });
+        setShowAddLeadModal(false);
+        fetchLeads();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || "Failed to generate enquiry.");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Error generating enquiry.");
+    }
+    setIsSubmittingLead(false);
+  };
+
   // Blog actions
   const handleSaveBlog = async (e) => {
     e.preventDefault();
@@ -211,7 +292,7 @@ export default function AdminDashboard() {
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         showToast(editingBlog ? "Blog updated successfully!" : "Blog created successfully!");
-        setBlogForm({ title: "", category: "Home Loan", excerpt: "", content: "", slug: "", imageUrl: "" });
+        setBlogForm({ title: "", category: "Home Loan", excerpt: "", content: "", slug: "", imageUrl: "", youtubeUrl: "" });
         setEditingBlog(null);
         fetchBlogs();
       } else {
@@ -651,33 +732,56 @@ export default function AdminDashboard() {
               <h2 style={{ color: "#071A3D", margin: 0 }}>Enquiry Management</h2>
               <p style={{ color: "#64748B", fontSize: "0.9rem" }}>Manage customer loan enquiries and update follow-up statuses.</p>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <label style={{ fontWeight: "700", fontSize: "0.88rem", color: "#071A3D", whiteSpace: "nowrap" }}>
-                Filter Status:
-              </label>
-              <select
-                value={leadFilter}
-                onChange={(e) => setLeadFilter(e.target.value)}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => setShowAddLeadModal(true)}
                 style={{
-                  padding: "8px 16px",
-                  borderRadius: "6px",
-                  border: "1px solid #071A3D",
-                  backgroundColor: "#071A3D",
+                  background: "#071A3D",
                   color: "#D9A62E",
+                  border: "1.5px solid #D9A62E",
+                  padding: "8px 18px",
+                  borderRadius: "6px",
                   fontWeight: "700",
                   fontSize: "0.88rem",
-                  outline: "none",
                   cursor: "pointer",
-                  boxShadow: "0 2px 8px rgba(7, 26, 61, 0.12)"
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  boxShadow: "0 2px 8px rgba(7, 26, 61, 0.15)"
                 }}
               >
-                <option value="All" style={{ background: "#fff", color: "#071A3D" }}>All Enquiries ({leads.length})</option>
-                <option value="New" style={{ background: "#fff", color: "#0284c7" }}>New ({leads.filter(l => l.status === "New").length})</option>
-                <option value="Contacted" style={{ background: "#fff", color: "#b45309" }}>Contacted ({leads.filter(l => l.status === "Contacted").length})</option>
-                <option value="Follow-up" style={{ background: "#fff", color: "#c2410c" }}>Follow-up ({leads.filter(l => l.status === "Follow-up").length})</option>
-                <option value="Approved" style={{ background: "#fff", color: "#16a34a" }}>Approved ({leads.filter(l => l.status === "Approved").length})</option>
-                <option value="Rejected" style={{ background: "#fff", color: "#dc2626" }}>Rejected ({leads.filter(l => l.status === "Rejected").length})</option>
-              </select>
+                ➕ Generate Lead / New Enquiry
+              </button>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <label style={{ fontWeight: "700", fontSize: "0.88rem", color: "#071A3D", whiteSpace: "nowrap" }}>
+                  Filter Status:
+                </label>
+                <select
+                  value={leadFilter}
+                  onChange={(e) => setLeadFilter(e.target.value)}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    border: "1px solid #071A3D",
+                    backgroundColor: "#071A3D",
+                    color: "#D9A62E",
+                    fontWeight: "700",
+                    fontSize: "0.88rem",
+                    outline: "none",
+                    cursor: "pointer",
+                    boxShadow: "0 2px 8px rgba(7, 26, 61, 0.12)"
+                  }}
+                >
+                  <option value="All" style={{ background: "#fff", color: "#071A3D" }}>All Enquiries ({leads.length})</option>
+                  <option value="New" style={{ background: "#fff", color: "#0284c7" }}>New ({leads.filter(l => l.status === "New").length})</option>
+                  <option value="Contacted" style={{ background: "#fff", color: "#b45309" }}>Contacted ({leads.filter(l => l.status === "Contacted").length})</option>
+                  <option value="Follow-up" style={{ background: "#fff", color: "#c2410c" }}>Follow-up ({leads.filter(l => l.status === "Follow-up").length})</option>
+                  <option value="Approved" style={{ background: "#fff", color: "#16a34a" }}>Approved ({leads.filter(l => l.status === "Approved").length})</option>
+                  <option value="Rejected" style={{ background: "#fff", color: "#dc2626" }}>Rejected ({leads.filter(l => l.status === "Rejected").length})</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -783,13 +887,117 @@ export default function AdminDashboard() {
       {/* 2. BLOG MANAGEMENT */}
       {activeTab === "blogs" && (
         <div>
-          <h2 style={{ color: "#071A3D", marginBottom: "5px" }}>Blog Management</h2>
-          <p style={{ color: "#64748B", fontSize: "0.9rem", marginBottom: "25px" }}>Publish, edit, and manage loan guidance articles.</p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "15px" }}>
+            <div>
+              <h2 style={{ color: "#071A3D", margin: 0 }}>Blog Management</h2>
+              <p style={{ color: "#64748B", fontSize: "0.9rem", margin: "4px 0 0 0" }}>Publish, edit, and manage loan guidance articles and YouTube video guides.</p>
+            </div>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingBlog(null);
+                  setBlogForm({ title: "", category: "Home Loan", excerpt: "", content: "", slug: "", imageUrl: "", youtubeUrl: "" });
+                  setArticleFormat("standard");
+                }}
+                style={{
+                  background: "#071A3D",
+                  color: "#D9A62E",
+                  border: "1.5px solid #D9A62E",
+                  padding: "8px 18px",
+                  borderRadius: "6px",
+                  fontWeight: "700",
+                  fontSize: "0.88rem",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}
+              >
+                📝 Add Standard Article
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingBlog(null);
+                  const sampleUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+                  const thumb = getYouTubeThumbnail(sampleUrl);
+                  setBlogForm({
+                    title: "",
+                    category: "Home Loan",
+                    excerpt: "",
+                    content: "",
+                    slug: "",
+                    imageUrl: thumb,
+                    youtubeUrl: sampleUrl
+                  });
+                  setArticleFormat("video");
+                }}
+                style={{
+                  background: "#DC2626",
+                  color: "#FFFFFF",
+                  border: "none",
+                  padding: "8px 18px",
+                  borderRadius: "6px",
+                  fontWeight: "700",
+                  fontSize: "0.88rem",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  boxShadow: "0 2px 8px rgba(220, 38, 38, 0.25)"
+                }}
+              >
+                ▶️ Add YouTube Video Article
+              </button>
+            </div>
+          </div>
 
           <form onSubmit={handleSaveBlog} style={{ background: "#F8FAFC", padding: "25px", borderRadius: "8px", marginBottom: "30px", border: "1px solid #E2E8F0" }}>
-            <h3 style={{ color: "#071A3D", marginBottom: "15px" }}>
-              {editingBlog ? "Edit Article" : "Add New Blog Article"}
-            </h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px", flexWrap: "wrap", gap: "10px" }}>
+              <h3 style={{ color: "#071A3D", margin: 0 }}>
+                {editingBlog ? "Edit Article" : "Add New Blog Article"}
+              </h3>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "#64748B" }}>Format:</span>
+                <button
+                  type="button"
+                  onClick={() => setArticleFormat("standard")}
+                  style={{
+                    padding: "4px 12px",
+                    borderRadius: "4px",
+                    border: articleFormat === "standard" ? "1.5px solid #071A3D" : "1px solid #CBD5E1",
+                    background: articleFormat === "standard" ? "#071A3D" : "white",
+                    color: articleFormat === "standard" ? "#D9A62E" : "#475569",
+                    fontWeight: "600",
+                    fontSize: "0.8rem",
+                    cursor: "pointer"
+                  }}
+                >
+                  📝 Standard
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setArticleFormat("video")}
+                  style={{
+                    padding: "4px 12px",
+                    borderRadius: "4px",
+                    border: articleFormat === "video" ? "1.5px solid #DC2626" : "1px solid #CBD5E1",
+                    background: articleFormat === "video" ? "#DC2626" : "#FEF2F2",
+                    color: articleFormat === "video" ? "#FFFFFF" : "#DC2626",
+                    fontWeight: "700",
+                    fontSize: "0.8rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px"
+                  }}
+                >
+                  ▶️ YouTube Video
+                </button>
+              </div>
+            </div>
             
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "15px" }}>
               <div>
@@ -820,14 +1028,123 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {/* YouTube Video Section - Prominently Displayed */}
+            <div style={{
+              marginBottom: "20px",
+              padding: "16px",
+              background: articleFormat === "video" || blogForm.youtubeUrl ? "#FEF2F2" : "#F8FAFC",
+              borderRadius: "8px",
+              border: articleFormat === "video" || blogForm.youtubeUrl ? "2px solid #FCA5A5" : "1px dashed #CBD5E1"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
+                <label style={{ fontWeight: "700", fontSize: "0.92rem", color: "#DC2626", display: "flex", alignItems: "center", gap: "6px" }}>
+                  ▶️ YouTube Video Link {articleFormat === "video" ? "(Video Article)" : "(Optional)"}
+                </label>
+                {!blogForm.youtubeUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sample = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+                      const thumb = getYouTubeThumbnail(sample);
+                      setBlogForm(prev => ({
+                        ...prev,
+                        youtubeUrl: sample,
+                        imageUrl: thumb || prev.imageUrl
+                      }));
+                      setArticleFormat("video");
+                      showToast("Sample video added and cover photo auto-updated!");
+                    }}
+                    style={{ background: "#FFFFFF", color: "#DC2626", border: "1px solid #FCA5A5", padding: "3px 10px", borderRadius: "4px", fontSize: "0.76rem", fontWeight: "600", cursor: "pointer" }}
+                  >
+                    ⚡ Paste Sample Video
+                  </button>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <input
+                  type="url"
+                  value={blogForm.youtubeUrl || ""}
+                  onChange={e => {
+                    const val = e.target.value;
+                    const thumb = getYouTubeThumbnail(val);
+                    setBlogForm(prev => ({
+                      ...prev,
+                      youtubeUrl: val,
+                      // Automatically update cover photo with YouTube HD thumbnail!
+                      imageUrl: thumb || prev.imageUrl
+                    }));
+                    if (val) setArticleFormat("video");
+                  }}
+                  placeholder="Paste YouTube Link (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...)"
+                  style={{ flex: 1, padding: "10px", borderRadius: "4px", border: "1.5px solid #CBD5E1", fontSize: "0.9rem", background: "white" }}
+                />
+                {blogForm.youtubeUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const isYtThumb = blogForm.imageUrl && blogForm.imageUrl.includes("youtube.com");
+                      setBlogForm(prev => ({
+                        ...prev,
+                        youtubeUrl: "",
+                        imageUrl: isYtThumb ? "" : prev.imageUrl
+                      }));
+                    }}
+                    style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "10px 14px", borderRadius: "4px", fontSize: "0.82rem", fontWeight: "600", cursor: "pointer", whiteSpace: "nowrap" }}
+                  >
+                    ✕ Clear Video
+                  </button>
+                )}
+              </div>
+              <span style={{ fontSize: "0.78rem", color: "#64748B", marginTop: "6px", display: "block" }}>
+                📸 When you paste a YouTube video, the cover photo below is <strong>automatically updated</strong> to the video's thumbnail!
+              </span>
+
+              {/* Instant Live Player Preview */}
+              {getYouTubeEmbedUrl(blogForm.youtubeUrl) && (
+                <div style={{ marginTop: "14px", padding: "12px", background: "white", borderRadius: "6px", border: "1px solid #FECACA" }}>
+                  <div style={{ fontSize: "0.82rem", fontWeight: "700", color: "#059669", marginBottom: "8px", display: "flex", alignItems: "center", gap: "5px" }}>
+                    <span>✅</span> Video Preview (will appear inside the published article):
+                  </div>
+                  <div style={{ position: "relative", width: "100%", maxWidth: "460px", paddingBottom: "258px", height: 0, borderRadius: "6px", overflow: "hidden", background: "#000" }}>
+                    <iframe
+                      src={getYouTubeEmbedUrl(blogForm.youtubeUrl)}
+                      title="YouTube Preview"
+                      style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div style={{ marginBottom: "15px" }}>
-              <label style={{ fontWeight: "600", fontSize: "0.9rem", display: "block", marginBottom: "5px" }}>Featured Cover Image URL</label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px", flexWrap: "wrap", gap: "6px" }}>
+                <label style={{ fontWeight: "600", fontSize: "0.9rem" }}>
+                  Featured Cover Image {blogForm.youtubeUrl ? "(Auto-updated from video)" : "(Optional)"}
+                </label>
+                {blogForm.youtubeUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const thumb = getYouTubeThumbnail(blogForm.youtubeUrl);
+                      if (thumb) {
+                        setBlogForm({ ...blogForm, imageUrl: thumb });
+                        showToast("Cover photo refreshed from YouTube thumbnail!");
+                      }
+                    }}
+                    style={{ background: "#EFF6FF", color: "#2563EB", border: "1px solid #BFDBFE", padding: "3px 10px", borderRadius: "4px", fontSize: "0.76rem", fontWeight: "600", cursor: "pointer" }}
+                  >
+                    🔄 Sync Video Thumbnail
+                  </button>
+                )}
+              </div>
               <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
                 <input
                   type="text"
                   value={blogForm.imageUrl || ""}
                   onChange={e => setBlogForm({ ...blogForm, imageUrl: e.target.value })}
-                  placeholder="e.g. /uploads/banner.jpg or https://..."
+                  placeholder="Auto-filled from YouTube or enter image URL"
                   style={{ flex: 1, minWidth: "220px", padding: "10px", borderRadius: "4px", border: "1px solid #CBD5E1" }}
                 />
                 <label style={{
@@ -840,7 +1157,7 @@ export default function AdminDashboard() {
                   cursor: "pointer",
                   whiteSpace: "nowrap"
                 }}>
-                  📷 Upload Image
+                  📷 Upload Custom Image
                   <input
                     type="file"
                     accept="image/*"
@@ -865,15 +1182,36 @@ export default function AdminDashboard() {
                 </label>
               </div>
               {blogForm.imageUrl && (
-                <div style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "10px" }}>
-                  <img src={blogForm.imageUrl} alt="Preview" style={{ height: "70px", borderRadius: "6px", objectFit: "cover", border: "1px solid #CBD5E1" }} />
-                  <button
-                    type="button"
-                    onClick={() => setBlogForm({ ...blogForm, imageUrl: "" })}
-                    style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "0.78rem", cursor: "pointer" }}
-                  >
-                    Remove Image
-                  </button>
+                <div style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", padding: "10px", background: "white", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
+                  <img
+                    src={blogForm.imageUrl}
+                    alt="Cover Preview"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                    }}
+                    onLoad={(e) => {
+                      e.target.style.display = "block";
+                    }}
+                    style={{ height: "75px", width: "120px", borderRadius: "6px", objectFit: "cover", border: "1.5px solid #CBD5E1", boxShadow: "0 2px 6px rgba(0,0,0,0.08)" }}
+                  />
+                  <div>
+                    {blogForm.imageUrl.includes("youtube.com") ? (
+                      <span style={{ fontSize: "0.78rem", color: "#059669", fontWeight: "700", display: "block", marginBottom: "4px" }}>
+                        ✨ Cover photo auto-updated from YouTube video!
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: "0.78rem", color: "#64748B", fontWeight: "600", display: "block", marginBottom: "4px" }}>
+                        Cover Photo Preview
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setBlogForm({ ...blogForm, imageUrl: "" })}
+                      style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "3px 8px", borderRadius: "4px", fontSize: "0.76rem", cursor: "pointer", fontWeight: "600" }}
+                    >
+                      Remove Cover Photo
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -891,7 +1229,19 @@ export default function AdminDashboard() {
             </div>
 
             <div style={{ marginBottom: "15px" }}>
-              <label style={{ fontWeight: "600", fontSize: "0.9rem", display: "block", marginBottom: "5px" }}>Full Content *</label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
+                <label style={{ fontWeight: "600", fontSize: "0.9rem" }}>Full Content *</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sample = "\n\n### 📺 Watch Video Guide:\n" + (blogForm.youtubeUrl || "https://www.youtube.com/watch?v=dQw4w9WgXcQ") + "\n\n";
+                    setBlogForm({ ...blogForm, content: (blogForm.content || "") + sample });
+                  }}
+                  style={{ background: "#EFF6FF", color: "#2563EB", border: "1px solid #BFDBFE", padding: "3px 10px", borderRadius: "4px", fontSize: "0.78rem", fontWeight: "600", cursor: "pointer" }}
+                >
+                  ➕ Insert Video Reference in Text
+                </button>
+              </div>
               <textarea
                 rows={6}
                 required
@@ -909,7 +1259,11 @@ export default function AdminDashboard() {
               {editingBlog && (
                 <button
                   type="button"
-                  onClick={() => { setEditingBlog(null); setBlogForm({ title: "", category: "Home Loan", excerpt: "", content: "", slug: "", imageUrl: "" }); }}
+                  onClick={() => {
+                    setEditingBlog(null);
+                    setBlogForm({ title: "", category: "Home Loan", excerpt: "", content: "", slug: "", imageUrl: "", youtubeUrl: "" });
+                    setArticleFormat("standard");
+                  }}
                   style={{ background: "#E2E8F0", color: "#475569", padding: "10px 20px", borderRadius: "4px", border: "none", cursor: "pointer" }}
                 >
                   Cancel
@@ -918,38 +1272,116 @@ export default function AdminDashboard() {
             </div>
           </form>
 
+          {/* List Blogs Filter */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "25px 0 15px", flexWrap: "wrap", gap: "10px" }}>
+            <h3 style={{ color: "#071A3D", margin: 0, fontSize: "1.1rem" }}>
+              Published Articles ({blogs.length})
+            </h3>
+            <div style={{ display: "flex", gap: "8px" }}>
+              {[
+                { id: "all", label: `All (${blogs.length})` },
+                { id: "video", label: `▶️ Videos (${blogs.filter(b => b.youtubeUrl).length})` },
+                { id: "standard", label: `📝 Standard (${blogs.filter(b => !b.youtubeUrl).length})` }
+              ].map(f => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setBlogFilter(f.id)}
+                  style={{
+                    padding: "5px 12px",
+                    borderRadius: "4px",
+                    border: blogFilter === f.id ? "1.5px solid #071A3D" : "1px solid #CBD5E1",
+                    background: blogFilter === f.id ? "#071A3D" : "white",
+                    color: blogFilter === f.id ? "#D9A62E" : "#475569",
+                    fontWeight: "600",
+                    fontSize: "0.82rem",
+                    cursor: "pointer"
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* List Blogs */}
           <div style={{ display: "grid", gap: "15px" }}>
-            {blogs.map(b => (
-              <div key={b.id} style={{ background: "white", border: "1px solid #E2E8F0", padding: "20px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
-                  {b.imageUrl && (
-                    <img src={b.imageUrl} alt={b.title} style={{ width: "70px", height: "70px", objectFit: "cover", borderRadius: "6px" }} />
-                  )}
-                  <div>
-                    <span style={{ fontSize: "0.8rem", color: "#D9A62E", fontWeight: "700" }}>{b.category}</span>
-                    <h4 style={{ margin: "5px 0", color: "#071A3D" }}>{b.title}</h4>
-                    <p style={{ color: "#64748B", fontSize: "0.85rem", margin: 0 }}>{b.excerpt}</p>
+            {blogs
+              .filter(b => {
+                if (blogFilter === "video") return !!b.youtubeUrl;
+                if (blogFilter === "standard") return !b.youtubeUrl;
+                return true;
+              })
+              .map(b => (
+                <div key={b.id} style={{ background: "white", border: "1px solid #E2E8F0", padding: "20px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
+                    {b.imageUrl ? (
+                      <img
+                        src={b.imageUrl}
+                        alt={b.title}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='70' height='70' viewBox='0 0 70 70'%3E%3Crect width='70' height='70' fill='%23F1F5F9'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='24'%3E📝%3C/text%3E%3C/svg%3E";
+                        }}
+                        style={{ width: "70px", height: "70px", objectFit: "cover", borderRadius: "6px", border: "1px solid #E2E8F0" }}
+                      />
+                    ) : b.youtubeUrl ? (
+                      <div style={{ width: "70px", height: "70px", borderRadius: "6px", background: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.8rem" }}>
+                        ▶️
+                      </div>
+                    ) : (
+                      <div style={{ width: "70px", height: "70px", borderRadius: "6px", background: "#F1F5F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem" }}>
+                        📝
+                      </div>
+                    )}
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        <span style={{ fontSize: "0.8rem", color: "#D9A62E", fontWeight: "700" }}>{b.category}</span>
+                        {b.youtubeUrl && (
+                          <>
+                            <span style={{ fontSize: "0.72rem", background: "#fee2e2", color: "#dc2626", padding: "2px 8px", borderRadius: "4px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                              ▶️ YouTube Video
+                            </span>
+                            <a href={b.youtubeUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.75rem", color: "#DC2626", textDecoration: "underline", fontWeight: "600" }}>
+                              Watch ↗
+                            </a>
+                          </>
+                        )}
+                      </div>
+                      <h4 style={{ margin: "5px 0", color: "#071A3D" }}>{b.title}</h4>
+                      <p style={{ color: "#64748B", fontSize: "0.85rem", margin: 0 }}>{b.excerpt}</p>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingBlog(b);
+                        setArticleFormat(b.youtubeUrl ? "video" : "standard");
+                        setBlogForm({
+                          title: b.title,
+                          category: b.category,
+                          excerpt: b.excerpt,
+                          content: b.content,
+                          slug: b.slug,
+                          imageUrl: b.imageUrl || "",
+                          youtubeUrl: b.youtubeUrl || ""
+                        });
+                      }}
+                      style={{ background: "#e0f2fe", color: "#0284c7", border: "none", padding: "6px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "600" }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteBlog(b.id)}
+                      style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "6px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "600" }}
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <button
-                    type="button"
-                    onClick={() => { setEditingBlog(b); setBlogForm({ title: b.title, category: b.category, excerpt: b.excerpt, content: b.content, slug: b.slug, imageUrl: b.imageUrl || "" }); }}
-                    style={{ background: "#e0f2fe", color: "#0284c7", border: "none", padding: "6px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "600" }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteBlog(b.id)}
-                    style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "6px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "600" }}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       )}
@@ -1253,6 +1685,228 @@ export default function AdminDashboard() {
                 📄 Download Customer PDF Report
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD / GENERATE LEAD MODAL */}
+      {showAddLeadModal && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(7, 26, 61, 0.6)",
+          backdropFilter: "blur(4px)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 10000,
+          padding: "20px"
+        }}>
+          <div style={{
+            background: "#ffffff",
+            borderRadius: "10px",
+            width: "100%",
+            maxWidth: "600px",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+            overflow: "hidden",
+            maxHeight: "90vh",
+            display: "flex",
+            flexDirection: "column"
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              background: "#071A3D",
+              color: "#ffffff",
+              padding: "16px 24px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center"
+            }}>
+              <div>
+                <h3 style={{ margin: 0, color: "#D9A62E", fontSize: "1.2rem" }}>➕ Generate New Lead / Enquiry</h3>
+                <p style={{ margin: "4px 0 0", color: "#CBD5E1", fontSize: "0.85rem" }}>
+                  Manually add a direct inquiry or phone lead
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddLeadModal(false)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "#ffffff",
+                  fontSize: "1.5rem",
+                  cursor: "pointer",
+                  padding: "0 5px"
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleCreateLeadSubmit} style={{ padding: "24px", overflowY: "auto" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "15px" }}>
+                <div>
+                  <label style={{ display: "block", fontWeight: "600", fontSize: "0.88rem", marginBottom: "5px", color: "#071A3D" }}>
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newLeadForm.name}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, name: e.target.value })}
+                    style={{ width: "100%", padding: "9px 12px", border: "1px solid #CBD5E1", borderRadius: "6px", fontSize: "0.9rem" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontWeight: "600", fontSize: "0.88rem", marginBottom: "5px", color: "#071A3D" }}>
+                    Mobile Number *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    pattern="[0-9]{10}"
+                    value={newLeadForm.mobile}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, mobile: e.target.value })}
+                    style={{ width: "100%", padding: "9px 12px", border: "1px solid #CBD5E1", borderRadius: "6px", fontSize: "0.9rem" }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "15px" }}>
+                <div>
+                  <label style={{ display: "block", fontWeight: "600", fontSize: "0.88rem", marginBottom: "5px", color: "#071A3D" }}>
+                    Loan Type *
+                  </label>
+                  <select
+                    value={newLeadForm.loanType}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, loanType: e.target.value })}
+                    style={{ width: "100%", padding: "9px 12px", border: "1px solid #CBD5E1", borderRadius: "6px", fontSize: "0.9rem", backgroundColor: "#fff" }}
+                  >
+                    <option value="Home Loan">Home Loan</option>
+                    <option value="Balance Transfer">Balance Transfer</option>
+                    <option value="Top-Up Loan">Top-Up Loan</option>
+                    <option value="Loan Against Property">Loan Against Property</option>
+                    <option value="Personal Loan">Personal Loan</option>
+                    <option value="Business Loan">Business Loan</option>
+                    <option value="Medical Insurance">Medical Insurance</option>
+                    <option value="Mutual Funds">Mutual Funds</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontWeight: "600", fontSize: "0.88rem", marginBottom: "5px", color: "#071A3D" }}>
+                    Loan Amount (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newLeadForm.loanAmount}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, loanAmount: e.target.value })}
+                    style={{ width: "100%", padding: "9px 12px", border: "1px solid #CBD5E1", borderRadius: "6px", fontSize: "0.9rem" }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "15px" }}>
+                <div>
+                  <label style={{ display: "block", fontWeight: "600", fontSize: "0.88rem", marginBottom: "5px", color: "#071A3D" }}>
+                    City / Location (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newLeadForm.city}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, city: e.target.value })}
+                    style={{ width: "100%", padding: "9px 12px", border: "1px solid #CBD5E1", borderRadius: "6px", fontSize: "0.9rem" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontWeight: "600", fontSize: "0.88rem", marginBottom: "5px", color: "#071A3D" }}>
+                    Lead Source
+                  </label>
+                  <select
+                    value={newLeadForm.source}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, source: e.target.value })}
+                    style={{ width: "100%", padding: "9px 12px", border: "1px solid #CBD5E1", borderRadius: "6px", fontSize: "0.9rem", backgroundColor: "#fff" }}
+                  >
+                    <option value="Phone Call">📞 Phone Call</option>
+                    <option value="WhatsApp">💬 WhatsApp</option>
+                    <option value="Direct Walk-in">🏢 Direct Walk-in</option>
+                    <option value="Referral">🤝 Referral</option>
+                    <option value="Website">🌐 Website</option>
+                    <option value="Other">📌 Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: "15px" }}>
+                <label style={{ display: "block", fontWeight: "600", fontSize: "0.88rem", marginBottom: "5px", color: "#071A3D" }}>
+                  Initial Status
+                </label>
+                <select
+                  value={newLeadForm.status}
+                  onChange={(e) => setNewLeadForm({ ...newLeadForm, status: e.target.value })}
+                  style={{ width: "100%", padding: "9px 12px", border: "1px solid #CBD5E1", borderRadius: "6px", fontSize: "0.9rem", backgroundColor: "#fff" }}
+                >
+                  <option value="New">New</option>
+                  <option value="Contacted">Contacted</option>
+                  <option value="Follow-up">Follow-up</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: "20px" }}>
+                <label style={{ display: "block", fontWeight: "600", fontSize: "0.88rem", marginBottom: "5px", color: "#071A3D" }}>
+                  Customer Notes / Requirement (Optional)
+                </label>
+                <textarea
+                  rows={3}
+                  value={newLeadForm.notes}
+                  onChange={(e) => setNewLeadForm({ ...newLeadForm, notes: e.target.value })}
+                  style={{ width: "100%", padding: "9px 12px", border: "1px solid #CBD5E1", borderRadius: "6px", fontSize: "0.9rem", resize: "vertical" }}
+                ></textarea>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #E2E8F0", paddingTop: "15px" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddLeadModal(false)}
+                  style={{
+                    background: "#F1F5F9",
+                    color: "#475569",
+                    border: "1px solid #CBD5E1",
+                    padding: "9px 18px",
+                    borderRadius: "6px",
+                    fontWeight: "600",
+                    fontSize: "0.9rem",
+                    cursor: "pointer"
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingLead}
+                  style={{
+                    background: "#071A3D",
+                    color: "#D9A62E",
+                    border: "none",
+                    padding: "9px 22px",
+                    borderRadius: "6px",
+                    fontWeight: "700",
+                    fontSize: "0.9rem",
+                    cursor: "pointer",
+                    boxShadow: "0 2px 8px rgba(7, 26, 61, 0.2)"
+                  }}
+                >
+                  {isSubmittingLead ? "Saving..." : "💾 Save Enquiry"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

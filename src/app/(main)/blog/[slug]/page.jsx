@@ -5,6 +5,13 @@ import { getBlogBySlug } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+function getYouTubeEmbedUrl(url) {
+  if (!url) return null;
+  const regExp = /(?:youtube(?:-nocookie)?\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?|shorts)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+  const match = url.match(regExp);
+  return match && match[1] ? `https://www.youtube-nocookie.com/embed/${match[1]}` : null;
+}
+
 export async function generateMetadata({ params }) {
   const { slug } = await params;
   const article = getBlogBySlug(slug);
@@ -23,6 +30,8 @@ export default async function BlogPostPage({ params }) {
   if (!article) {
     notFound();
   }
+
+  const embedUrl = getYouTubeEmbedUrl(article.youtubeUrl);
 
   return (
     <div className={styles.main}>
@@ -50,6 +59,37 @@ export default async function BlogPostPage({ params }) {
               <img src={article.imageUrl} alt={article.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
           )}
+
+          {embedUrl && (
+            <div style={{ marginBottom: "35px" }}>
+              <div style={{
+                position: "relative",
+                paddingBottom: "56.25%",
+                height: 0,
+                overflow: "hidden",
+                borderRadius: "12px",
+                boxShadow: "0 6px 24px rgba(0,0,0,0.12)",
+                backgroundColor: "#000"
+              }}>
+                <iframe
+                  src={embedUrl}
+                  title={article.title}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
+                    border: 0,
+                    borderRadius: "12px"
+                  }}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          )}
+
           <div style={{ fontSize: "1.1rem", lineHeight: "1.8", color: "#333", whiteSpace: "pre-line" }}>
             {article.content}
           </div>

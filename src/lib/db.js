@@ -86,6 +86,7 @@ function getDb() {
         content TEXT NOT NULL,
         date TEXT NOT NULL,
         imageUrl TEXT,
+        youtubeUrl TEXT,
         createdAt TEXT DEFAULT (datetime('now'))
       );
 
@@ -112,6 +113,16 @@ function getDb() {
     } catch (e) {
       // Column already exists
     }
+
+    try {
+      db.exec("ALTER TABLE Blog ADD COLUMN youtubeUrl TEXT");
+    } catch (e) {
+      // Column already exists
+    }
+
+    try {
+      db.exec("UPDATE Blog SET youtubeUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' WHERE id = 'art-1' AND (youtubeUrl IS NULL OR youtubeUrl = '')");
+    } catch (e) {}
 
     const defaultArticles = [
       {
@@ -293,8 +304,8 @@ export function createLead(data) {
 
   const insertAction = (targetDb) => {
     const stmt = targetDb.prepare(`
-      INSERT INTO Lead (id, name, phone, email, loanType, employmentType, loanAmount, city, source, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO Lead (id, name, phone, email, loanType, employmentType, loanAmount, city, source, status, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     stmt.run(
       id,
@@ -306,6 +317,7 @@ export function createLead(data) {
       data.loanAmount ?? null,
       data.city ?? null,
       data.source ?? "Website",
+      data.status ?? "New",
       data.notes ?? null
     );
   };
@@ -399,11 +411,25 @@ export function createBlog(data) {
   const db = getDb();
   const id = Math.random().toString(36).slice(2) + Date.now().toString(36);
   const slug = data.slug || data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-  const stmt = db.prepare(`
-    INSERT INTO Blog (id, slug, title, category, excerpt, content, date, imageUrl)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  stmt.run(id, slug, data.title, data.category, data.excerpt, data.content, data.date || new Date().toISOString().split("T")[0], data.imageUrl || null);
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO Blog (id, slug, title, category, excerpt, content, date, imageUrl, youtubeUrl)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(id, slug, data.title, data.category, data.excerpt, data.content, data.date || new Date().toISOString().split("T")[0], data.imageUrl || null, data.youtubeUrl || null);
+  } catch (err) {
+    if (err.message && err.message.includes("no such column")) {
+      try { db.exec("ALTER TABLE Blog ADD COLUMN imageUrl TEXT"); } catch (e) {}
+      try { db.exec("ALTER TABLE Blog ADD COLUMN youtubeUrl TEXT"); } catch (e) {}
+      const stmt = db.prepare(`
+        INSERT INTO Blog (id, slug, title, category, excerpt, content, date, imageUrl, youtubeUrl)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      stmt.run(id, slug, data.title, data.category, data.excerpt, data.content, data.date || new Date().toISOString().split("T")[0], data.imageUrl || null, data.youtubeUrl || null);
+    } else {
+      throw err;
+    }
+  }
   return { id, slug };
 }
 
@@ -415,15 +441,16 @@ export function updateBlog(id, data) {
 
   try {
     db.prepare(`
-      UPDATE Blog SET title = ?, category = ?, excerpt = ?, content = ?, slug = ?, imageUrl = ? WHERE id = ?
-    `).run(data.title, data.category, data.excerpt, data.content, slug, data.imageUrl || null, id);
+      UPDATE Blog SET title = ?, category = ?, excerpt = ?, content = ?, slug = ?, imageUrl = ?, youtubeUrl = ? WHERE id = ?
+    `).run(data.title, data.category, data.excerpt, data.content, slug, data.imageUrl || null, data.youtubeUrl || null, id);
   } catch (err) {
     if (err.message && err.message.includes("no such column")) {
       try {
-        db.exec("ALTER TABLE Blog ADD COLUMN imageUrl TEXT");
+        try { db.exec("ALTER TABLE Blog ADD COLUMN imageUrl TEXT"); } catch (e) {}
+        try { db.exec("ALTER TABLE Blog ADD COLUMN youtubeUrl TEXT"); } catch (e) {}
         db.prepare(`
-          UPDATE Blog SET title = ?, category = ?, excerpt = ?, content = ?, slug = ?, imageUrl = ? WHERE id = ?
-        `).run(data.title, data.category, data.excerpt, data.content, slug, data.imageUrl || null, id);
+          UPDATE Blog SET title = ?, category = ?, excerpt = ?, content = ?, slug = ?, imageUrl = ?, youtubeUrl = ? WHERE id = ?
+        `).run(data.title, data.category, data.excerpt, data.content, slug, data.imageUrl || null, data.youtubeUrl || null, id);
       } catch (retryErr) {
         console.error("Failed to update blog:", retryErr);
         throw retryErr;
@@ -544,11 +571,11 @@ export function restoreDatabaseImport(data) {
     if (data.blogs && Array.isArray(data.blogs)) {
       db.prepare("DELETE FROM Blog").run();
       const insertBlog = db.prepare(`
-        INSERT INTO Blog (id, slug, title, category, excerpt, content, date, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO Blog (id, slug, title, category, excerpt, content, date, createdAt, imageUrl, youtubeUrl)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       for (const b of data.blogs) {
-        insertBlog.run(b.id, b.slug, b.title, b.category, b.excerpt, b.content, b.date, b.createdAt);
+        insertBlog.run(b.id, b.slug, b.title, b.category, b.excerpt, b.content, b.date, b.createdAt || new Date().toISOString(), b.imageUrl || null, b.youtubeUrl || null);
       }
     }
     if (data.settings && Array.isArray(data.settings)) {

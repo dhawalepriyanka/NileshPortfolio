@@ -7,7 +7,7 @@ export const revalidate = 0;
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { name, mobile, loanType, message, email, employmentType, loanAmount, city, source } = body;
+    const { name, mobile, loanType, message, email, employmentType, loanAmount, city, source, status } = body;
 
     if (!name || !mobile || !loanType) {
       return NextResponse.json(
@@ -33,6 +33,7 @@ export async function POST(req) {
       loanAmount,
       city,
       source: source || "Website",
+      status: status || "New",
     });
 
     return NextResponse.json({ success: true, data: lead }, { status: 201 });
