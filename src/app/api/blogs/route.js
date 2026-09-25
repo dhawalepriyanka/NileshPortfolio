@@ -4,7 +4,7 @@ import { getAllBlogs, createBlog, updateBlog, deleteBlog } from "@/lib/db";
 
 export async function GET() {
   try {
-    const blogs = getAllBlogs();
+    const blogs = await getAllBlogs();
     return NextResponse.json(blogs, {
       headers: {
         "Cache-Control": "no-store, max-age=0",
@@ -22,7 +22,7 @@ export async function POST(req) {
     if (!body.title || !body.excerpt || !body.content) {
       return NextResponse.json({ error: "Title, excerpt, and content are required" }, { status: 400 });
     }
-    const result = createBlog(body);
+    const result = await createBlog(body);
     revalidatePath("/", "layout");
     revalidatePath("/blog");
     return NextResponse.json({ success: true, data: result }, { status: 201 });
@@ -38,7 +38,7 @@ export async function PUT(req) {
     if (!body.id || !body.title) {
       return NextResponse.json({ error: "ID and title required" }, { status: 400 });
     }
-    const result = updateBlog(body.id, body);
+    const result = await updateBlog(body.id, body);
     revalidatePath("/", "layout");
     revalidatePath("/blog");
     return NextResponse.json({ success: true, data: result });
@@ -54,7 +54,7 @@ export async function DELETE(req) {
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
 
-    deleteBlog(id);
+    await deleteBlog(id);
     revalidatePath("/", "layout");
     revalidatePath("/blog");
     return NextResponse.json({ success: true });

@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const reviews = getAllTestimonials();
+    const reviews = await getAllTestimonials();
     return NextResponse.json(reviews);
   } catch (error) {
     console.error("Error fetching testimonials:", error);
@@ -25,7 +25,7 @@ export async function POST(req) {
       );
     }
 
-    const review = createTestimonial({
+    const review = await createTestimonial({
       name: name.trim(),
       rating: Number(rating) || 5,
       testimonial: testimonial.trim(),
@@ -47,7 +47,7 @@ export async function DELETE(req) {
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "ID is required" }, { status: 400 });
 
-    deleteTestimonial(id);
+    await deleteTestimonial(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting testimonial:", error);

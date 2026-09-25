@@ -20,7 +20,7 @@ export async function POST(req) {
   try {
     const body = await req.json();
     for (const [key, val] of Object.entries(body)) {
-      setSetting(key, val);
+      await setSetting(key, val);
     }
     revalidatePath("/", "layout");
     return NextResponse.json({ success: true }, {

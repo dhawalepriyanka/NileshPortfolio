@@ -3,7 +3,7 @@ import { getDatabaseExport, restoreDatabaseImport } from "@/lib/db";
 
 export async function GET() {
   try {
-    const data = getDatabaseExport();
+    const data = await getDatabaseExport();
     const jsonStr = JSON.stringify(data, null, 2);
     return new NextResponse(jsonStr, {
       status: 200,
@@ -24,7 +24,7 @@ export async function POST(req) {
     if (!data.leads && !data.blogs && !data.settings) {
       return NextResponse.json({ error: "Invalid backup format" }, { status: 400 });
     }
-    restoreDatabaseImport(data);
+    await restoreDatabaseImport(data);
     return NextResponse.json({ success: true, message: "Database restored successfully" });
   } catch (error) {
     console.error("Backup restore error:", error);

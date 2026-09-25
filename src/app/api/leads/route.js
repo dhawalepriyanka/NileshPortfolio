@@ -23,7 +23,7 @@ export async function POST(req) {
       );
     }
 
-    const lead = createLead({
+    const lead = await createLead({
       name,
       phone: mobile,
       loanType,
@@ -45,7 +45,7 @@ export async function POST(req) {
 
 export async function GET() {
   try {
-    const leads = getAllLeads();
+    const leads = await getAllLeads();
     return NextResponse.json(leads, {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
@@ -66,7 +66,7 @@ export async function PUT(req) {
     if (!id) {
       return NextResponse.json({ error: "ID required" }, { status: 400 });
     }
-    updateLead(id, body);
+    await updateLead(id, body);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error updating lead:", error);
@@ -80,7 +80,7 @@ export async function DELETE(req) {
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
 
-    deleteLead(id);
+    await deleteLead(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting lead:", error);

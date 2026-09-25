@@ -15,8 +15,8 @@ function getYouTubeThumbnail(url) {
   return match && match[1] ? `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg` : null;
 }
 
-export default function BlogPage() {
-  const articles = getAllBlogs();
+export default async function BlogPage() {
+  const articles = (await getAllBlogs()) || [];
 
   return (
     <div className={styles.main}>

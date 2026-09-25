@@ -14,7 +14,7 @@ function getYouTubeEmbedUrl(url) {
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
-  const article = getBlogBySlug(slug);
+  const article = await getBlogBySlug(slug);
   if (!article) return { title: "Article Not Found" };
 
   return {
@@ -25,7 +25,7 @@ export async function generateMetadata({ params }) {
 
 export default async function BlogPostPage({ params }) {
   const { slug } = await params;
-  const article = getBlogBySlug(slug);
+  const article = await getBlogBySlug(slug);
 
   if (!article) {
     notFound();
