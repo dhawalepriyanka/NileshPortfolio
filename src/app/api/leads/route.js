@@ -62,11 +62,11 @@ export async function GET() {
 export async function PUT(req) {
   try {
     const body = await req.json();
-    const { id, status, notes } = body;
-    if (!id || !status) {
-      return NextResponse.json({ error: "ID and status required" }, { status: 400 });
+    const { id } = body;
+    if (!id) {
+      return NextResponse.json({ error: "ID required" }, { status: 400 });
     }
-    updateLead(id, status, notes);
+    updateLead(id, body);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error updating lead:", error);

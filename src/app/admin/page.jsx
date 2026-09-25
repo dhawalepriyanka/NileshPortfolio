@@ -22,16 +22,46 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("leads");
 
   // Auth State
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("nilesh_admin_logged_in") === "true";
+    }
+    return false;
+  });
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
 
   // State
-  const [leads, setLeads] = useState([]);
+  const [leads, setLeads] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("nilesh_admin_leads_vault");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) {
+        console.warn("Could not read leads vault:", e);
+      }
+    }
+    return [];
+  });
   const [leadFilter, setLeadFilter] = useState("All");
-  const [blogs, setBlogs] = useState([]);
+  const [blogs, setBlogs] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("nilesh_admin_blogs_vault");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) {
+        console.warn("Could not read blogs vault:", e);
+      }
+    }
+    return [];
+  });
   const [blogFilter, setBlogFilter] = useState("all"); // "all" | "video" | "standard"
   const [articleFormat, setArticleFormat] = useState("standard"); // "standard" | "video"
   const [images, setImages] = useState([]);
@@ -71,11 +101,11 @@ export default function AdminDashboard() {
 
   // Generate / Add Enquiry Modal
   const [showAddLeadModal, setShowAddLeadModal] = useState(false);
+  const [editingLead, setEditingLead] = useState(null);
   const [newLeadForm, setNewLeadForm] = useState({
     name: "",
     mobile: "",
     loanType: "Home Loan",
-    loanAmount: "",
     city: "",
     source: "Phone Call",
     status: "New",
@@ -90,63 +120,6 @@ export default function AdminDashboard() {
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(""), 3500);
-  };
-
-  useEffect(() => {
-    // Pre-populate leads immediately from local vault so leads are never empty!
-    try {
-      const saved = localStorage.getItem("nilesh_admin_leads_vault");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setLeads(parsed);
-        }
-      }
-    } catch (e) {}
-
-    const session = localStorage.getItem("nilesh_admin_logged_in");
-    if (session === "true") {
-      setIsLoggedIn(true);
-      fetchLeads();
-      fetchBlogs();
-      fetchImages();
-      fetchSettings();
-      fetchTestimonials();
-    }
-    setIsCheckingAuth(false);
-  }, []);
-
-  const handleLoginSubmit = (e) => {
-    e.preventDefault();
-    setLoginError("");
-    const user = username.trim().toLowerCase();
-    const pass = password.trim();
-
-    if ((user === "admin" || user === "nilesh") && (pass === "admin123" || pass === "admin" || pass === "nilesh123")) {
-      localStorage.setItem("nilesh_admin_logged_in", "true");
-      setIsLoggedIn(true);
-      showToast("Welcome! Logged in successfully.");
-      try {
-        const saved = localStorage.getItem("nilesh_admin_leads_vault");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) setLeads(parsed);
-        }
-      } catch (e) {}
-      fetchLeads();
-      fetchBlogs();
-      fetchImages();
-      fetchSettings();
-      fetchTestimonials();
-    } else {
-      setLoginError("Invalid Username or Password. Please try again.");
-    }
-  };
-
-  const handleLogoutClick = () => {
-    localStorage.removeItem("nilesh_admin_logged_in");
-    setIsLoggedIn(false);
-    showToast("Logged out successfully.");
   };
 
   const syncLeadsToServer = async (vaultList) => {
@@ -173,15 +146,28 @@ export default function AdminDashboard() {
     }
   };
 
+  const syncBlogsToServer = async (vaultList) => {
+    try {
+      for (const blog of vaultList) {
+        await fetch("/api/blogs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(blog)
+        }).catch(() => {});
+      }
+    } catch (err) {
+      console.warn("syncBlogsToServer warning:", err);
+    }
+  };
+
   const fetchLeads = async () => {
     let localVault = [];
     try {
       const saved = localStorage.getItem("nilesh_admin_leads_vault");
       if (saved) localVault = JSON.parse(saved);
-      if (Array.isArray(localVault) && localVault.length > 0) {
-        setLeads(localVault);
-      }
-    } catch (e) {}
+    } catch (e) {
+      console.warn("fetchLeads vault read error:", e);
+    }
 
     try {
       const res = await fetch(`/api/leads?t=${Date.now()}`, { cache: "no-store" });
@@ -197,7 +183,9 @@ export default function AdminDashboard() {
           setLeads(merged);
           try {
             localStorage.setItem("nilesh_admin_leads_vault", JSON.stringify(merged));
-          } catch (e) {}
+          } catch (e) {
+            console.warn("localStorage error:", e);
+          }
 
           if (serverLeads.length === 0 && localVault.length > 0) {
             syncLeadsToServer(localVault);
@@ -210,10 +198,41 @@ export default function AdminDashboard() {
   };
 
   const fetchBlogs = async () => {
+    let localVault = [];
+    try {
+      const saved = localStorage.getItem("nilesh_admin_blogs_vault");
+      if (saved) localVault = JSON.parse(saved);
+    } catch (e) {
+      console.warn("fetchBlogs vault read error:", e);
+    }
+
     try {
       const res = await fetch(`/api/blogs?t=${Date.now()}`, { cache: "no-store" });
-      if (res.ok) setBlogs(await res.json());
-    } catch (e) { console.error(e); }
+      if (res.ok) {
+        const serverBlogs = await res.json();
+        if (Array.isArray(serverBlogs)) {
+          const map = new Map();
+          serverBlogs.forEach(b => { if (b && b.id) map.set(b.id, b); });
+          localVault.forEach(b => { if (b && b.id) map.set(b.id, b); });
+          const merged = Array.from(map.values()).sort(
+            (a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0)
+          );
+          setBlogs(merged);
+          try {
+            localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(merged));
+          } catch (e) {
+            console.warn("localStorage error:", e);
+          }
+
+          if (serverBlogs.length < merged.length) {
+            const missing = merged.filter(b => !serverBlogs.some(sb => sb.id === b.id));
+            if (missing.length > 0) syncBlogsToServer(missing);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("fetchBlogs error:", e);
+    }
   };
 
   const fetchImages = async () => {
@@ -240,6 +259,44 @@ export default function AdminDashboard() {
       const res = await fetch(`/api/testimonials?t=${Date.now()}`, { cache: "no-store" });
       if (res.ok) setTestimonials(await res.json());
     } catch (e) { console.error(e); }
+  };
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const timer = setTimeout(() => {
+      fetchLeads();
+      fetchBlogs();
+      fetchImages();
+      fetchSettings();
+      fetchTestimonials();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [isLoggedIn]);
+
+  const handleLoginSubmit = (e) => {
+    e.preventDefault();
+    setLoginError("");
+    const user = username.trim().toLowerCase();
+    const pass = password.trim();
+
+    if ((user === "admin" || user === "nilesh") && (pass === "admin123" || pass === "admin" || pass === "nilesh123")) {
+      localStorage.setItem("nilesh_admin_logged_in", "true");
+      setIsLoggedIn(true);
+      showToast("Welcome! Logged in successfully.");
+      fetchLeads();
+      fetchBlogs();
+      fetchImages();
+      fetchSettings();
+      fetchTestimonials();
+    } else {
+      setLoginError("Invalid Username or Password. Please try again.");
+    }
+  };
+
+  const handleLogoutClick = () => {
+    localStorage.removeItem("nilesh_admin_logged_in");
+    setIsLoggedIn(false);
+    showToast("Logged out successfully.");
   };
 
   const handleDeleteTestimonial = async (id) => {
@@ -307,6 +364,20 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleOpenEditLeadModal = (lead) => {
+    setEditingLead(lead);
+    setNewLeadForm({
+      name: lead.name || "",
+      mobile: lead.phone || lead.mobile || "",
+      loanType: lead.loanType || "Home Loan",
+      city: lead.city || "",
+      source: lead.source || "Phone Call",
+      status: lead.status || "New",
+      notes: lead.notes || lead.message || ""
+    });
+    setShowAddLeadModal(true);
+  };
+
   const handleCreateLeadSubmit = async (e) => {
     e.preventDefault();
     if (!newLeadForm.name || !newLeadForm.mobile || !newLeadForm.loanType) {
@@ -318,6 +389,60 @@ export default function AdminDashboard() {
       return;
     }
     setIsSubmittingLead(true);
+
+    if (editingLead) {
+      try {
+        const payload = {
+          id: editingLead.id,
+          name: newLeadForm.name.trim(),
+          phone: newLeadForm.mobile.trim(),
+          mobile: newLeadForm.mobile.trim(),
+          loanType: newLeadForm.loanType,
+          city: newLeadForm.city.trim() || undefined,
+          source: newLeadForm.source,
+          status: newLeadForm.status,
+          notes: newLeadForm.notes.trim() || undefined
+        };
+        const res = await fetch("/api/leads", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          showToast("Enquiry updated successfully!");
+          const updatedObj = {
+            ...editingLead,
+            ...payload
+          };
+          setLeads(prev => {
+            const updated = prev.map(l => l.id === editingLead.id ? updatedObj : l);
+            try {
+              localStorage.setItem("nilesh_admin_leads_vault", JSON.stringify(updated));
+            } catch (e) {}
+            return updated;
+          });
+          setEditingLead(null);
+          setNewLeadForm({
+            name: "",
+            mobile: "",
+            loanType: "Home Loan",
+            source: "Phone Call",
+            status: "New",
+            notes: ""
+          });
+          setShowAddLeadModal(false);
+        } else {
+          const data = await res.json().catch(() => ({}));
+          showToast(data.error || "Failed to update enquiry.");
+        }
+      } catch (err) {
+        console.error(err);
+        showToast("Error updating enquiry.");
+      }
+      setIsSubmittingLead(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/leads", {
         method: "POST",
@@ -327,7 +452,6 @@ export default function AdminDashboard() {
           phone: newLeadForm.mobile.trim(),
           mobile: newLeadForm.mobile.trim(),
           loanType: newLeadForm.loanType,
-          loanAmount: newLeadForm.loanAmount.trim() || undefined,
           city: newLeadForm.city.trim() || undefined,
           source: newLeadForm.source,
           status: newLeadForm.status,
@@ -344,7 +468,6 @@ export default function AdminDashboard() {
           phone: newLeadForm.mobile.trim(),
           mobile: newLeadForm.mobile.trim(),
           loanType: newLeadForm.loanType,
-          loanAmount: newLeadForm.loanAmount.trim() || undefined,
           city: newLeadForm.city.trim() || undefined,
           source: newLeadForm.source,
           status: newLeadForm.status,
@@ -360,6 +483,7 @@ export default function AdminDashboard() {
           return updated;
         });
 
+        setEditingLead(null);
         setNewLeadForm({
           name: "",
           mobile: "",
@@ -385,37 +509,100 @@ export default function AdminDashboard() {
   // Blog actions
   const handleSaveBlog = async (e) => {
     e.preventDefault();
+    if (!blogForm.title.trim() || !blogForm.excerpt.trim() || !blogForm.content.trim()) {
+      showToast("Please fill in Title, Excerpt, and Content.");
+      return;
+    }
+
     try {
       const method = editingBlog ? "PUT" : "POST";
       const payload = editingBlog ? { ...blogForm, id: editingBlog.id } : blogForm;
+
+      // Optimistically apply immediately to UI & local vault so UI is never delayed or wiped!
+      if (editingBlog) {
+        const updatedArticle = {
+          ...editingBlog,
+          ...payload,
+          id: editingBlog.id,
+          slug: payload.slug || editingBlog.slug || payload.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          imageUrl: payload.imageUrl || "",
+          youtubeUrl: payload.youtubeUrl || "",
+          updatedAt: new Date().toISOString()
+        };
+        setBlogs(prev => {
+          const updated = prev.map(b => b.id === editingBlog.id ? updatedArticle : b);
+          try { localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(updated)); } catch (err) {}
+          return updated;
+        });
+        showToast("Blog updated successfully!");
+        setBlogForm({ title: "", category: "Home Loan", excerpt: "", content: "", slug: "", imageUrl: "", youtubeUrl: "" });
+        setEditingBlog(null);
+        setArticleFormat("standard");
+      } else {
+        const newSlug = payload.slug || payload.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+        const newArticle = {
+          id: "blog-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          slug: newSlug,
+          title: payload.title.trim(),
+          category: payload.category,
+          excerpt: payload.excerpt.trim(),
+          content: payload.content.trim(),
+          date: new Date().toISOString().split("T")[0],
+          imageUrl: payload.imageUrl || "",
+          youtubeUrl: payload.youtubeUrl || "",
+          createdAt: new Date().toISOString()
+        };
+        setBlogs(prev => {
+          const updated = [newArticle, ...prev];
+          try { localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(updated)); } catch (err) {}
+          return updated;
+        });
+        showToast("Blog created successfully!");
+        setBlogForm({ title: "", category: "Home Loan", excerpt: "", content: "", slug: "", imageUrl: "", youtubeUrl: "" });
+        setArticleFormat("standard");
+      }
+
+      // Sync to API in background
       const res = await fetch("/api/blogs", {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
       const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        showToast(editingBlog ? "Blog updated successfully!" : "Blog created successfully!");
-        setBlogForm({ title: "", category: "Home Loan", excerpt: "", content: "", slug: "", imageUrl: "", youtubeUrl: "" });
-        setEditingBlog(null);
-        fetchBlogs();
-      } else {
-        showToast(data.error || "Failed to save blog.");
+      if (res.ok && data.data) {
+        // If server provided canonical id or slug, reconcile with state
+        if (data.data.id || data.data.slug) {
+          setBlogs(prev => {
+            const updated = prev.map(b => {
+              if (editingBlog && b.id === editingBlog.id) {
+                return { ...b, ...data.data };
+              }
+              if (!editingBlog && (b.title === payload.title)) {
+                return { ...b, ...data.data };
+              }
+              return b;
+            });
+            try { localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(updated)); } catch (err) {}
+            return updated;
+          });
+        }
       }
     } catch (e) {
       console.error(e);
-      showToast("Error saving blog.");
+      showToast("Blog saved locally.");
     }
   };
 
   const handleDeleteBlog = async (id) => {
     if (!confirm("Are you sure you want to delete this article?")) return;
+    setBlogs(prev => {
+      const updated = prev.filter(b => b.id !== id);
+      try { localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(updated)); } catch (err) {}
+      return updated;
+    });
+    showToast("Blog post deleted!");
     try {
-      const res = await fetch(`/api/blogs?id=${id}`, { method: "DELETE" });
-      if (res.ok) {
-        showToast("Blog post deleted!");
-        fetchBlogs();
-      }
+      await fetch(`/api/blogs?id=${encodeURIComponent(id)}`, { method: "DELETE" });
     } catch (e) { console.error(e); }
   };
 
@@ -839,7 +1026,19 @@ export default function AdminDashboard() {
             <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
               <button
                 type="button"
-                onClick={() => setShowAddLeadModal(true)}
+                onClick={() => {
+                  setEditingLead(null);
+                  setNewLeadForm({
+                    name: "",
+                    mobile: "",
+                    loanType: "Home Loan",
+                    city: "",
+                    source: "Phone Call",
+                    status: "New",
+                    notes: ""
+                  });
+                  setShowAddLeadModal(true);
+                }}
                 style={{
                   background: "#071A3D",
                   color: "#D9A62E",
@@ -961,23 +1160,42 @@ export default function AdminDashboard() {
                         />
                       </td>
                       <td style={{ padding: "12px" }}>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteLead(lead.id)}
-                          style={{
-                            background: "#fee2e2",
-                            color: "#dc2626",
-                            border: "none",
-                            padding: "6px 12px",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            fontWeight: "600",
-                            fontSize: "0.8rem",
-                            transform: "none"
-                          }}
-                        >
-                          Delete
-                        </button>
+                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditLeadModal(lead)}
+                            style={{
+                              background: "#e0f2fe",
+                              color: "#0284c7",
+                              border: "none",
+                              padding: "6px 12px",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                              fontWeight: "600",
+                              fontSize: "0.8rem",
+                              transform: "none"
+                            }}
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteLead(lead.id)}
+                            style={{
+                              background: "#fee2e2",
+                              color: "#dc2626",
+                              border: "none",
+                              padding: "6px 12px",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                              fontWeight: "600",
+                              fontSize: "0.8rem",
+                              transform: "none"
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -1200,7 +1418,7 @@ export default function AdminDashboard() {
                 )}
               </div>
               <span style={{ fontSize: "0.78rem", color: "#64748B", marginTop: "6px", display: "block" }}>
-                📸 When you paste a YouTube video, the cover photo below is <strong>automatically updated</strong> to the video's thumbnail!
+                📸 When you paste a YouTube video, the cover photo below is <strong>automatically updated</strong> to the video&apos;s thumbnail!
               </span>
 
               {/* Instant Live Player Preview */}
@@ -1830,14 +2048,19 @@ export default function AdminDashboard() {
               alignItems: "center"
             }}>
               <div>
-                <h3 style={{ margin: 0, color: "#D9A62E", fontSize: "1.2rem" }}>➕ Generate New Lead / Enquiry</h3>
+                <h3 style={{ margin: 0, color: "#D9A62E", fontSize: "1.2rem" }}>
+                  {editingLead ? "✏️ Edit Enquiry Details" : "➕ Generate New Lead / Enquiry"}
+                </h3>
                 <p style={{ margin: "4px 0 0", color: "#CBD5E1", fontSize: "0.85rem" }}>
-                  Manually add a direct inquiry or phone lead
+                  {editingLead ? `Update details for ${editingLead.name || "customer"}` : "Manually add a direct inquiry or phone lead"}
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setShowAddLeadModal(false)}
+                onClick={() => {
+                  setEditingLead(null);
+                  setShowAddLeadModal(false);
+                }}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -1903,20 +2126,6 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <label style={{ display: "block", fontWeight: "600", fontSize: "0.88rem", marginBottom: "5px", color: "#071A3D" }}>
-                    Loan Amount (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={newLeadForm.loanAmount}
-                    onChange={(e) => setNewLeadForm({ ...newLeadForm, loanAmount: e.target.value })}
-                    style={{ width: "100%", padding: "9px 12px", border: "1px solid #CBD5E1", borderRadius: "6px", fontSize: "0.9rem" }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "15px" }}>
-                <div>
-                  <label style={{ display: "block", fontWeight: "600", fontSize: "0.88rem", marginBottom: "5px", color: "#071A3D" }}>
                     City / Location (Optional)
                   </label>
                   <input
@@ -1926,6 +2135,9 @@ export default function AdminDashboard() {
                     style={{ width: "100%", padding: "9px 12px", border: "1px solid #CBD5E1", borderRadius: "6px", fontSize: "0.9rem" }}
                   />
                 </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "15px" }}>
                 <div>
                   <label style={{ display: "block", fontWeight: "600", fontSize: "0.88rem", marginBottom: "5px", color: "#071A3D" }}>
                     Lead Source
@@ -1943,28 +2155,27 @@ export default function AdminDashboard() {
                     <option value="Other">📌 Other</option>
                   </select>
                 </div>
-              </div>
-
-              <div style={{ marginBottom: "15px" }}>
-                <label style={{ display: "block", fontWeight: "600", fontSize: "0.88rem", marginBottom: "5px", color: "#071A3D" }}>
-                  Initial Status
-                </label>
-                <select
-                  value={newLeadForm.status}
-                  onChange={(e) => setNewLeadForm({ ...newLeadForm, status: e.target.value })}
-                  style={{ width: "100%", padding: "9px 12px", border: "1px solid #CBD5E1", borderRadius: "6px", fontSize: "0.9rem", backgroundColor: "#fff" }}
-                >
-                  <option value="New">New</option>
-                  <option value="Contacted">Contacted</option>
-                  <option value="Follow-up">Follow-up</option>
-                  <option value="Approved">Approved</option>
-                  <option value="Rejected">Rejected</option>
-                </select>
+                <div>
+                  <label style={{ display: "block", fontWeight: "600", fontSize: "0.88rem", marginBottom: "5px", color: "#071A3D" }}>
+                    Status
+                  </label>
+                  <select
+                    value={newLeadForm.status}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, status: e.target.value })}
+                    style={{ width: "100%", padding: "9px 12px", border: "1px solid #CBD5E1", borderRadius: "6px", fontSize: "0.9rem", backgroundColor: "#fff" }}
+                  >
+                    <option value="New">New</option>
+                    <option value="Contacted">Contacted</option>
+                    <option value="Follow-up">Follow-up</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                </div>
               </div>
 
               <div style={{ marginBottom: "20px" }}>
                 <label style={{ display: "block", fontWeight: "600", fontSize: "0.88rem", marginBottom: "5px", color: "#071A3D" }}>
-                  Customer Notes / Requirement (Optional)
+                  Notes
                 </label>
                 <textarea
                   rows={3}
@@ -1978,7 +2189,10 @@ export default function AdminDashboard() {
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #E2E8F0", paddingTop: "15px" }}>
                 <button
                   type="button"
-                  onClick={() => setShowAddLeadModal(false)}
+                  onClick={() => {
+                    setEditingLead(null);
+                    setShowAddLeadModal(false);
+                  }}
                   style={{
                     background: "#F1F5F9",
                     color: "#475569",
@@ -2007,7 +2221,7 @@ export default function AdminDashboard() {
                     boxShadow: "0 2px 8px rgba(7, 26, 61, 0.2)"
                   }}
                 >
-                  {isSubmittingLead ? "Saving..." : "💾 Save Enquiry"}
+                  {isSubmittingLead ? "Saving..." : (editingLead ? "💾 Update Enquiry" : "💾 Save Enquiry")}
                 </button>
               </div>
             </form>

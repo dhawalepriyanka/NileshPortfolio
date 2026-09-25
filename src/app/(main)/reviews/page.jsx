@@ -40,14 +40,28 @@ export default function CustomerReviewsPage() {
   };
 
   useEffect(() => {
-    fetchReviews();
+    let active = true;
+
+    fetch(`/api/testimonials?t=${Date.now()}`, { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (active && Array.isArray(data)) setReviews(data);
+      })
+      .catch((err) => console.error(err))
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
     fetch("/api/settings")
       .then((res) => res.json())
       .then((data) => {
-        if (data && data.whatsapp) setWhatsapp(data.whatsapp);
+        if (active && data && data.whatsapp) setWhatsapp(data.whatsapp);
       })
       .catch(() => {});
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleSubmitReview = async (e) => {

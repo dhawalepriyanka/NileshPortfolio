@@ -38,13 +38,13 @@ export async function PUT(req) {
     if (!body.id || !body.title) {
       return NextResponse.json({ error: "ID and title required" }, { status: 400 });
     }
-    updateBlog(body.id, body);
+    const result = updateBlog(body.id, body);
     revalidatePath("/", "layout");
     revalidatePath("/blog");
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, data: result });
   } catch (error) {
     console.error("Error updating blog:", error);
-    return NextResponse.json({ error: "Failed to update blog" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Failed to update blog" }, { status: 500 });
   }
 }
 

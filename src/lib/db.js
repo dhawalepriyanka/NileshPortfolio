@@ -359,15 +359,61 @@ export function getAllLeads() {
   return db.prepare("SELECT * FROM Lead ORDER BY createdAt DESC").all();
 }
 
-export function updateLead(id, status, notes) {
+export function updateLead(id, dataOrStatus, maybeNotes) {
   let database = getDb();
+  let name, phone, loanType, loanAmount, city, source, status, notes;
+
+  if (typeof dataOrStatus === "object" && dataOrStatus !== null) {
+    status = dataOrStatus.status || "New";
+    notes = dataOrStatus.notes !== undefined ? dataOrStatus.notes : (dataOrStatus.message ?? null);
+    name = dataOrStatus.name;
+    phone = dataOrStatus.phone || dataOrStatus.mobile;
+    loanType = dataOrStatus.loanType;
+    loanAmount = dataOrStatus.loanAmount;
+    city = dataOrStatus.city;
+    source = dataOrStatus.source;
+  } else {
+    status = dataOrStatus;
+    notes = maybeNotes;
+  }
+
+  const runUpdate = (targetDb) => {
+    if (name || phone || loanType) {
+      targetDb.prepare(`
+        UPDATE Lead SET 
+          name = COALESCE(?, name),
+          phone = COALESCE(?, phone),
+          loanType = COALESCE(?, loanType),
+          loanAmount = COALESCE(?, loanAmount),
+          city = COALESCE(?, city),
+          source = COALESCE(?, source),
+          status = COALESCE(?, status),
+          notes = ?,
+          updatedAt = datetime('now')
+        WHERE id = ?
+      `).run(
+        name || null,
+        phone || null,
+        loanType || null,
+        loanAmount || null,
+        city || null,
+        source || null,
+        status || null,
+        notes !== undefined ? notes : null,
+        id
+      );
+    } else {
+      targetDb.prepare("UPDATE Lead SET status = ?, notes = ?, updatedAt = datetime('now') WHERE id = ?").run(status, notes, id);
+    }
+  };
+
   try {
-    database.prepare("UPDATE Lead SET status = ?, notes = ?, updatedAt = datetime('now') WHERE id = ?").run(status, notes, id);
+    runUpdate(database);
   } catch (err) {
     console.warn("Retrying updateLead on /tmp/dev.db:", err.message);
     try {
       const tmpDb = new Database("/tmp/dev.db");
-      tmpDb.prepare("UPDATE Lead SET status = ?, notes = ?, updatedAt = datetime('now') WHERE id = ?").run(status, notes, id);
+      runUpdate(tmpDb);
     } catch (fallbackErr) {
       console.error("Critical updateLead fallback error:", fallbackErr.message);
     }
@@ -407,16 +453,46 @@ export function getBlogBySlug(slug) {
   return db.prepare("SELECT * FROM Blog WHERE slug = ?").get(slug);
 }
 
+function generateUniqueSlug(dbInstance, text, currentId = null) {
+  let base = (text || "article")
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  if (!base) base = "article-" + Date.now().toString(36);
+
+  let slug = base;
+  let counter = 1;
+  while (true) {
+    let row;
+    if (currentId) {
+      row = dbInstance.prepare("SELECT id FROM Blog WHERE slug = ? AND id != ?").get(slug, currentId);
+    } else {
+      row = dbInstance.prepare("SELECT id FROM Blog WHERE slug = ?").get(slug);
+    }
+    if (!row) break;
+    slug = `${base}-${counter++}`;
+  }
+  return slug;
+}
+
 export function createBlog(data) {
   const db = getDb();
-  const id = Math.random().toString(36).slice(2) + Date.now().toString(36);
-  const slug = data.slug || data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const id = data.id || ("blog-" + Math.random().toString(36).slice(2, 9) + Date.now().toString(36));
+  const slug = generateUniqueSlug(db, data.slug || data.title);
+  const date = data.date || new Date().toISOString().split("T")[0];
+  const imageUrl = data.imageUrl || null;
+  const youtubeUrl = data.youtubeUrl || null;
+
   try {
     const stmt = db.prepare(`
       INSERT INTO Blog (id, slug, title, category, excerpt, content, date, imageUrl, youtubeUrl)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    stmt.run(id, slug, data.title, data.category, data.excerpt, data.content, data.date || new Date().toISOString().split("T")[0], data.imageUrl || null, data.youtubeUrl || null);
+    stmt.run(id, slug, data.title, data.category, data.excerpt, data.content, date, imageUrl, youtubeUrl);
   } catch (err) {
     if (err.message && err.message.includes("no such column")) {
       try { db.exec("ALTER TABLE Blog ADD COLUMN imageUrl TEXT"); } catch (e) {}
@@ -425,24 +501,24 @@ export function createBlog(data) {
         INSERT INTO Blog (id, slug, title, category, excerpt, content, date, imageUrl, youtubeUrl)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
-      stmt.run(id, slug, data.title, data.category, data.excerpt, data.content, data.date || new Date().toISOString().split("T")[0], data.imageUrl || null, data.youtubeUrl || null);
+      stmt.run(id, slug, data.title, data.category, data.excerpt, data.content, date, imageUrl, youtubeUrl);
     } else {
       throw err;
     }
   }
-  return { id, slug };
+  return { id, slug, title: data.title, category: data.category, excerpt: data.excerpt, content: data.content, date, imageUrl, youtubeUrl };
 }
 
 export function updateBlog(id, data) {
   const db = getDb();
-  const slug = (data.slug && data.slug.trim() !== "")
-    ? data.slug
-    : data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const slug = generateUniqueSlug(db, data.slug || data.title, id);
+  const imageUrl = data.imageUrl || null;
+  const youtubeUrl = data.youtubeUrl || null;
 
   try {
     db.prepare(`
       UPDATE Blog SET title = ?, category = ?, excerpt = ?, content = ?, slug = ?, imageUrl = ?, youtubeUrl = ? WHERE id = ?
-    `).run(data.title, data.category, data.excerpt, data.content, slug, data.imageUrl || null, data.youtubeUrl || null, id);
+    `).run(data.title, data.category, data.excerpt, data.content, slug, imageUrl, youtubeUrl, id);
   } catch (err) {
     if (err.message && err.message.includes("no such column")) {
       try {
@@ -450,7 +526,7 @@ export function updateBlog(id, data) {
         try { db.exec("ALTER TABLE Blog ADD COLUMN youtubeUrl TEXT"); } catch (e) {}
         db.prepare(`
           UPDATE Blog SET title = ?, category = ?, excerpt = ?, content = ?, slug = ?, imageUrl = ?, youtubeUrl = ? WHERE id = ?
-        `).run(data.title, data.category, data.excerpt, data.content, slug, data.imageUrl || null, data.youtubeUrl || null, id);
+        `).run(data.title, data.category, data.excerpt, data.content, slug, imageUrl, youtubeUrl, id);
       } catch (retryErr) {
         console.error("Failed to update blog:", retryErr);
         throw retryErr;
@@ -459,6 +535,7 @@ export function updateBlog(id, data) {
       throw err;
     }
   }
+  return { id, slug, title: data.title, category: data.category, excerpt: data.excerpt, content: data.content, imageUrl, youtubeUrl };
 }
 
 export function deleteBlog(id) {
