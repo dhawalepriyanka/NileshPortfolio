@@ -93,6 +93,17 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
+    // Pre-populate leads immediately from local vault so leads are never empty!
+    try {
+      const saved = localStorage.getItem("nilesh_admin_leads_vault");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setLeads(parsed);
+        }
+      }
+    } catch (e) {}
+
     const session = localStorage.getItem("nilesh_admin_logged_in");
     if (session === "true") {
       setIsLoggedIn(true);
@@ -115,6 +126,13 @@ export default function AdminDashboard() {
       localStorage.setItem("nilesh_admin_logged_in", "true");
       setIsLoggedIn(true);
       showToast("Welcome! Logged in successfully.");
+      try {
+        const saved = localStorage.getItem("nilesh_admin_leads_vault");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) setLeads(parsed);
+        }
+      } catch (e) {}
       fetchLeads();
       fetchBlogs();
       fetchImages();
@@ -131,11 +149,64 @@ export default function AdminDashboard() {
     showToast("Logged out successfully.");
   };
 
+  const syncLeadsToServer = async (vaultList) => {
+    try {
+      for (const lead of vaultList) {
+        await fetch("/api/leads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: lead.name,
+            phone: lead.phone || lead.mobile,
+            mobile: lead.phone || lead.mobile,
+            loanType: lead.loanType,
+            loanAmount: lead.loanAmount,
+            city: lead.city,
+            source: lead.source,
+            status: lead.status,
+            message: lead.notes
+          })
+        }).catch(() => {});
+      }
+    } catch (err) {
+      console.warn("syncLeadsToServer warning:", err);
+    }
+  };
+
   const fetchLeads = async () => {
+    let localVault = [];
+    try {
+      const saved = localStorage.getItem("nilesh_admin_leads_vault");
+      if (saved) localVault = JSON.parse(saved);
+      if (Array.isArray(localVault) && localVault.length > 0) {
+        setLeads(localVault);
+      }
+    } catch (e) {}
+
     try {
       const res = await fetch(`/api/leads?t=${Date.now()}`, { cache: "no-store" });
-      if (res.ok) setLeads(await res.json());
-    } catch (e) { console.error(e); }
+      if (res.ok) {
+        const serverLeads = await res.json();
+        if (Array.isArray(serverLeads)) {
+          const map = new Map();
+          localVault.forEach(l => { if (l && l.id) map.set(l.id, l); });
+          serverLeads.forEach(l => { if (l && l.id) map.set(l.id, l); });
+          const merged = Array.from(map.values()).sort(
+            (a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0)
+          );
+          setLeads(merged);
+          try {
+            localStorage.setItem("nilesh_admin_leads_vault", JSON.stringify(merged));
+          } catch (e) {}
+
+          if (serverLeads.length === 0 && localVault.length > 0) {
+            syncLeadsToServer(localVault);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("fetchLeads error:", e);
+    }
   };
 
   const fetchBlogs = async () => {
@@ -192,6 +263,14 @@ export default function AdminDashboard() {
 
   // Lead actions
   const handleUpdateLeadStatus = async (id, status, notes) => {
+    setLeads(prev => {
+      const updated = prev.map(l => l.id === id ? { ...l, status, notes: notes !== undefined ? notes : l.notes } : l);
+      try {
+        localStorage.setItem("nilesh_admin_leads_vault", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
       const res = await fetch("/api/leads", {
         method: "PUT",
@@ -200,29 +279,31 @@ export default function AdminDashboard() {
       });
       if (res.ok) {
         showToast("Enquiry status updated!");
-        fetchLeads();
       }
     } catch (e) { console.error(e); }
   };
 
   const handleDeleteLead = async (id) => {
     if (!confirm("Are you sure you want to delete this enquiry?")) return;
-    // Optimistically remove from state immediately so it disappears right away
-    setLeads(prev => prev.filter(l => l.id !== id));
+    setLeads(prev => {
+      const updated = prev.filter(l => l.id !== id);
+      try {
+        localStorage.setItem("nilesh_admin_leads_vault", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
       const res = await fetch(`/api/leads?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       if (res.ok) {
         showToast("Enquiry deleted successfully!");
-        fetchLeads();
       } else {
         const data = await res.json().catch(() => ({}));
         showToast(data.error || "Failed to delete enquiry.");
-        fetchLeads();
       }
     } catch (e) {
       console.error(e);
       showToast("Error deleting enquiry.");
-      fetchLeads();
     }
   };
 
@@ -254,7 +335,31 @@ export default function AdminDashboard() {
         })
       });
       if (res.ok) {
+        const data = await res.json().catch(() => ({}));
         showToast("Enquiry generated successfully!");
+        
+        const createdObj = {
+          id: data.data?.id || ("lead-" + Date.now()),
+          name: newLeadForm.name.trim(),
+          phone: newLeadForm.mobile.trim(),
+          mobile: newLeadForm.mobile.trim(),
+          loanType: newLeadForm.loanType,
+          loanAmount: newLeadForm.loanAmount.trim() || undefined,
+          city: newLeadForm.city.trim() || undefined,
+          source: newLeadForm.source,
+          status: newLeadForm.status,
+          notes: newLeadForm.notes.trim() || undefined,
+          createdAt: new Date().toISOString()
+        };
+
+        setLeads(prev => {
+          const updated = [createdObj, ...prev.filter(l => l.id !== createdObj.id)];
+          try {
+            localStorage.setItem("nilesh_admin_leads_vault", JSON.stringify(updated));
+          } catch (e) {}
+          return updated;
+        });
+
         setNewLeadForm({
           name: "",
           mobile: "",
@@ -266,7 +371,6 @@ export default function AdminDashboard() {
           notes: ""
         });
         setShowAddLeadModal(false);
-        fetchLeads();
       } else {
         const data = await res.json().catch(() => ({}));
         showToast(data.error || "Failed to generate enquiry.");

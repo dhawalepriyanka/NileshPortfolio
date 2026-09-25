@@ -12,10 +12,13 @@ export default function FreeConsultation() {
   const [status, setStatus] = useState("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
+  const [lastSubmitted, setLastSubmitted] = useState(null);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus("submitting");
     setErrorMessage("");
+    const submissionCopy = { ...formData };
     
     try {
       const response = await fetch("/api/leads", {
@@ -28,6 +31,7 @@ export default function FreeConsultation() {
 
       if (response.ok) {
         setStatus("success");
+        setLastSubmitted(submissionCopy);
         setFormData({ name: "", mobile: "", loanType: "", message: "" });
       } else {
         setStatus("error");
@@ -51,9 +55,36 @@ export default function FreeConsultation() {
           
           {status === "success" ? (
             <div className={styles.successMessage}>
-              <h3>Thank you for your enquiry!</h3>
-              <p>Nilesh Kute will contact you shortly.</p>
-              <button className="btn mt-4" onClick={() => setStatus("idle")}>Submit another enquiry</button>
+              <div style={{ fontSize: "2.5rem", marginBottom: "8px" }}>✅</div>
+              <h3 style={{ color: "#071A3D", marginBottom: "8px" }}>Thank you for your enquiry!</h3>
+              <p style={{ color: "#475569", marginBottom: "15px" }}>Nilesh Kute has received your request and will contact you shortly.</p>
+              
+              {lastSubmitted && (
+                <div style={{ margin: "20px 0" }}>
+                  <a
+                    href={`https://wa.me/918356008675?text=${encodeURIComponent(`Hello Nilesh Sir, I submitted an enquiry on your website.\n\nName: ${lastSubmitted.name}\nPhone: ${lastSubmitted.mobile}\nLoan Type: ${lastSubmitted.loanType}\nMessage: ${lastSubmitted.message || "Please call me back"}`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      background: "#25D366",
+                      color: "#FFFFFF",
+                      padding: "12px 24px",
+                      borderRadius: "6px",
+                      fontWeight: "700",
+                      fontSize: "0.95rem",
+                      textDecoration: "none",
+                      boxShadow: "0 4px 14px rgba(37, 211, 102, 0.35)"
+                    }}
+                  >
+                    <span>💬</span> Chat with Nilesh on WhatsApp Now
+                  </a>
+                </div>
+              )}
+              
+              <button className="btn mt-2" onClick={() => setStatus("idle")}>Submit another enquiry</button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className={styles.form}>
