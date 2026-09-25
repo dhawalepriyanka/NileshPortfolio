@@ -1,10 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import styles from "./Admin.module.css";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
+const emptySubscribe = () => () => {};
+
+function useIsMounted() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+}
 
 function getYouTubeEmbedUrl(url) {
   if (!url) return null;
@@ -21,47 +31,19 @@ function getYouTubeThumbnail(url) {
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("leads");
 
+  // Mounting State to avoid SSR Hydration Mismatch
+  const mounted = useIsMounted();
+
   // Auth State
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("nilesh_admin_logged_in") === "true";
-    }
-    return false;
-  });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
 
   // State
-  const [leads, setLeads] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("nilesh_admin_leads_vault");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch (e) {
-        console.warn("Could not read leads vault:", e);
-      }
-    }
-    return [];
-  });
+  const [leads, setLeads] = useState([]);
   const [leadFilter, setLeadFilter] = useState("All");
-  const [blogs, setBlogs] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("nilesh_admin_blogs_vault");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch (e) {
-        console.warn("Could not read blogs vault:", e);
-      }
-    }
-    return [];
-  });
+  const [blogs, setBlogs] = useState([]);
   const [blogFilter, setBlogFilter] = useState("all"); // "all" | "video" | "standard"
   const [articleFormat, setArticleFormat] = useState("standard"); // "standard" | "video"
   const [images, setImages] = useState([]);
@@ -262,16 +244,36 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (!isLoggedIn) return;
     const timer = setTimeout(() => {
-      fetchLeads();
-      fetchBlogs();
-      fetchImages();
-      fetchSettings();
-      fetchTestimonials();
+      const session = typeof window !== "undefined" && localStorage.getItem("nilesh_admin_logged_in") === "true";
+      if (session) {
+        setIsLoggedIn(true);
+
+        try {
+          const savedLeads = localStorage.getItem("nilesh_admin_leads_vault");
+          if (savedLeads) {
+            const parsed = JSON.parse(savedLeads);
+            if (Array.isArray(parsed) && parsed.length > 0) setLeads(parsed);
+          }
+        } catch (e) {}
+
+        try {
+          const savedBlogs = localStorage.getItem("nilesh_admin_blogs_vault");
+          if (savedBlogs) {
+            const parsed = JSON.parse(savedBlogs);
+            if (Array.isArray(parsed) && parsed.length > 0) setBlogs(parsed);
+          }
+        } catch (e) {}
+
+        fetchLeads();
+        fetchBlogs();
+        fetchImages();
+        fetchSettings();
+        fetchTestimonials();
+      }
     }, 0);
     return () => clearTimeout(timer);
-  }, [isLoggedIn]);
+  }, []);
 
   const handleLoginSubmit = (e) => {
     e.preventDefault();
@@ -283,6 +285,23 @@ export default function AdminDashboard() {
       localStorage.setItem("nilesh_admin_logged_in", "true");
       setIsLoggedIn(true);
       showToast("Welcome! Logged in successfully.");
+
+      try {
+        const savedLeads = localStorage.getItem("nilesh_admin_leads_vault");
+        if (savedLeads) {
+          const parsed = JSON.parse(savedLeads);
+          if (Array.isArray(parsed) && parsed.length > 0) setLeads(parsed);
+        }
+      } catch (e) {}
+
+      try {
+        const savedBlogs = localStorage.getItem("nilesh_admin_blogs_vault");
+        if (savedBlogs) {
+          const parsed = JSON.parse(savedBlogs);
+          if (Array.isArray(parsed) && parsed.length > 0) setBlogs(parsed);
+        }
+      } catch (e) {}
+
       fetchLeads();
       fetchBlogs();
       fetchImages();
@@ -792,10 +811,10 @@ export default function AdminDashboard() {
     Rejected: { bg: "#fee2e2", color: "#dc2626" },
   };
 
-  if (isCheckingAuth) {
+  if (!mounted) {
     return (
       <div style={{ padding: "60px", textAlign: "center", color: "#071A3D", fontWeight: "600" }}>
-        Checking authentication...
+        Loading Admin Portal...
       </div>
     );
   }
