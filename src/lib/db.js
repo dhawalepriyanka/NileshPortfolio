@@ -2,10 +2,13 @@ import path from "path";
 import fs from "fs";
 import { DatabaseSync } from "node:sqlite";
 import { createClient } from "@libsql/client";
+import { neon } from "@neondatabase/serverless";
 
-// --- TURSO CLOUD CONFIGURATION ---
+// --- DATABASE PROVIDER DETECTION ---
 let tursoClient = null;
 let tursoInitPromise = null;
+let neonSql = null;
+let neonInitPromise = null;
 
 function getTursoConfig() {
   const url =
@@ -22,9 +25,31 @@ function getTursoConfig() {
   return { url, authToken };
 }
 
-export function isTursoEnabled() {
-  const { url } = getTursoConfig();
-  return Boolean(url);
+function getNeonConfig() {
+  const url =
+    (process.env.DATABASE_URL &&
+    (process.env.DATABASE_URL.startsWith("postgres://") ||
+      process.env.DATABASE_URL.startsWith("postgresql://"))
+      ? process.env.DATABASE_URL
+      : null) ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL;
+
+  return url || null;
+}
+
+function getNeonClient() {
+  const url = getNeonConfig();
+  if (!url) return null;
+  if (!neonSql) {
+    try {
+      neonSql = neon(url);
+    } catch (err) {
+      console.error("Failed to initialize Neon client:", err);
+      return null;
+    }
+  }
+  return neonSql;
 }
 
 function getTursoClient() {
@@ -47,6 +72,39 @@ function getTursoClient() {
 
 function cleanArgs(args) {
   return args.map((arg) => (arg === undefined ? null : arg));
+}
+
+// Normalize column names from PostgreSQL (which can return lowercase)
+function normalizeBlogRow(row) {
+  if (!row) return null;
+  return {
+    ...row,
+    imageUrl: row.imageUrl ?? row.imageurl ?? null,
+    youtubeUrl: row.youtubeUrl ?? row.youtubeurl ?? null,
+    createdAt: row.createdAt ?? row.createdat ?? row.date,
+  };
+}
+
+function normalizeLeadRow(row) {
+  if (!row) return null;
+  return {
+    ...row,
+    loanType: row.loanType ?? row.loantype,
+    employmentType: row.employmentType ?? row.employmenttype,
+    loanAmount: row.loanAmount ?? row.loanamount,
+    followUpDate: row.followUpDate ?? row.followupdate,
+    createdAt: row.createdAt ?? row.createdat,
+    updatedAt: row.updatedAt ?? row.updatedat,
+  };
+}
+
+function normalizeTestimonialRow(row) {
+  if (!row) return null;
+  return {
+    ...row,
+    loanType: row.loanType ?? row.loantype,
+    createdAt: row.createdAt ?? row.createdat,
+  };
 }
 
 // --- DEFAULT DATA SEEDS ---
@@ -236,6 +294,111 @@ let cachedSettings = {
   metaContactDesc: "Get in touch with Nilesh Kute for expert home loan guidance. Call, WhatsApp, or email for a free consultation."
 };
 
+// --- INITIALIZE NEON POSTGRES TABLES & SEEDS ---
+async function ensureNeonInit(sql) {
+  if (neonInitPromise) return neonInitPromise;
+
+  neonInitPromise = (async () => {
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS "Lead" (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          phone TEXT NOT NULL,
+          email TEXT,
+          "loanType" TEXT NOT NULL,
+          "employmentType" TEXT,
+          "loanAmount" TEXT,
+          city TEXT,
+          source TEXT DEFAULT 'Website',
+          status TEXT DEFAULT 'New',
+          notes TEXT,
+          "followUpDate" TEXT,
+          "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "Blog" (
+          id TEXT PRIMARY KEY,
+          slug TEXT UNIQUE NOT NULL,
+          title TEXT NOT NULL,
+          category TEXT NOT NULL,
+          excerpt TEXT NOT NULL,
+          content TEXT NOT NULL,
+          date TEXT NOT NULL,
+          "imageUrl" TEXT,
+          "youtubeUrl" TEXT,
+          "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "Setting" (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "Testimonial" (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          rating INTEGER DEFAULT 5,
+          testimonial TEXT NOT NULL,
+          "loanType" TEXT,
+          location TEXT,
+          date TEXT NOT NULL,
+          "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+      `;
+
+      // Seed blogs if table is empty
+      const blogCountRes = await sql`SELECT count(*)::int as count FROM "Blog"`;
+      const blogCount = blogCountRes[0]?.count || 0;
+      if (blogCount === 0) {
+        for (const a of defaultArticles) {
+          await sql`
+            INSERT INTO "Blog" (id, slug, title, category, excerpt, content, date, "imageUrl", "youtubeUrl")
+            VALUES (${a.id}, ${a.slug}, ${a.title}, ${a.category}, ${a.excerpt}, ${a.content}, ${a.date}, ${a.imageUrl || null}, ${a.youtubeUrl || null})
+            ON CONFLICT (id) DO NOTHING
+          `;
+        }
+      }
+
+      // Seed reviews if table is empty
+      const revCountRes = await sql`SELECT count(*)::int as count FROM "Testimonial"`;
+      const revCount = revCountRes[0]?.count || 0;
+      if (revCount === 0) {
+        for (const r of defaultReviews) {
+          await sql`
+            INSERT INTO "Testimonial" (id, name, rating, testimonial, "loanType", location, date)
+            VALUES (${r.id}, ${r.name}, ${r.rating}, ${r.testimonial}, ${r.loanType}, ${r.location}, ${r.date})
+            ON CONFLICT (id) DO NOTHING
+          `;
+        }
+      }
+
+      // Load remote settings into cachedSettings
+      const settingsRes = await sql`SELECT * FROM "Setting"`;
+      settingsRes.forEach((r) => {
+        try {
+          cachedSettings[r.key] = JSON.parse(r.value);
+        } catch {
+          cachedSettings[r.key] = r.value;
+        }
+      });
+    } catch (err) {
+      console.error("Error initializing Neon PostgreSQL tables:", err.message);
+      neonInitPromise = null;
+    }
+  })();
+
+  return neonInitPromise;
+}
+
 // --- INITIALIZE TURSO TABLES & SEEDS ---
 async function ensureTursoInit(client) {
   if (tursoInitPromise) return tursoInitPromise;
@@ -288,7 +451,6 @@ async function ensureTursoInit(client) {
         );`
       ]);
 
-      // Seed default blogs if table is empty
       const blogCountRes = await client.execute("SELECT count(*) as count FROM Blog");
       const blogCount = Number(blogCountRes.rows[0]?.count || 0);
       if (blogCount === 0) {
@@ -301,7 +463,6 @@ async function ensureTursoInit(client) {
         }
       }
 
-      // Seed default reviews if table is empty
       const revCountRes = await client.execute("SELECT count(*) as count FROM Testimonial");
       const revCount = Number(revCountRes.rows[0]?.count || 0);
       if (revCount === 0) {
@@ -314,7 +475,6 @@ async function ensureTursoInit(client) {
         }
       }
 
-      // Load remote settings into cachedSettings
       const settingsRes = await client.execute("SELECT * FROM Setting");
       settingsRes.rows.forEach(r => {
         try {
@@ -460,7 +620,6 @@ function getDb() {
       insertReview.run(r.id, r.name, r.rating, r.testimonial, r.loanType, r.location, r.date);
     }
 
-    // Populate cachedSettings from local db
     try {
       const rows = db.prepare("SELECT * FROM Setting").all();
       rows.forEach(r => {
@@ -475,7 +634,6 @@ function getDb() {
   return db;
 }
 
-// Ensure local db or cache is initialized synchronously on startup
 try {
   getDb();
 } catch (e) {
@@ -496,11 +654,23 @@ async function generateUniqueSlug(text, currentId = null) {
 
   let slug = base;
   let counter = 1;
+
+  const neon = getNeonClient();
   const turso = getTursoClient();
 
   while (true) {
     let row = null;
-    if (turso) {
+    if (neon) {
+      try {
+        await ensureNeonInit(neon);
+        const rows = currentId
+          ? await neon`SELECT id FROM "Blog" WHERE slug = ${slug} AND id != ${currentId} LIMIT 1`
+          : await neon`SELECT id FROM "Blog" WHERE slug = ${slug} LIMIT 1`;
+        row = rows[0];
+      } catch (err) {
+        console.warn("Neon slug check error:", err.message);
+      }
+    } else if (turso) {
       try {
         await ensureTursoInit(turso);
         const res = currentId
@@ -517,7 +687,8 @@ async function generateUniqueSlug(text, currentId = null) {
         console.warn("Turso slug check error:", err.message);
       }
     }
-    if (!turso || !row) {
+
+    if (!row && !neon && !turso) {
       try {
         const localDb = getDb();
         if (currentId) {
@@ -527,6 +698,7 @@ async function generateUniqueSlug(text, currentId = null) {
         }
       } catch (e) {}
     }
+
     if (!row) break;
     slug = `${base}-${counter++}`;
   }
@@ -536,7 +708,21 @@ async function generateUniqueSlug(text, currentId = null) {
 // --- LEADS ---
 export async function createLead(data) {
   const id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const neon = getNeonClient();
   const turso = getTursoClient();
+
+  if (neon) {
+    try {
+      await ensureNeonInit(neon);
+      await neon`
+        INSERT INTO "Lead" (id, name, phone, email, "loanType", "employmentType", "loanAmount", city, source, status, notes)
+        VALUES (${id}, ${data.name}, ${data.phone}, ${data.email ?? null}, ${data.loanType}, ${data.employmentType ?? null}, ${data.loanAmount ?? null}, ${data.city ?? null}, ${data.source ?? "Website"}, ${data.status ?? "New"}, ${data.notes ?? null})
+      `;
+      return { id };
+    } catch (err) {
+      console.warn("Neon createLead failed, attempting fallback:", err.message);
+    }
+  }
 
   if (turso) {
     try {
@@ -564,7 +750,6 @@ export async function createLead(data) {
     }
   }
 
-  // Fallback to local SQLite
   try {
     const database = getDb();
     const stmt = database.prepare(`
@@ -592,6 +777,17 @@ export async function createLead(data) {
 }
 
 export async function getAllLeads() {
+  const neon = getNeonClient();
+  if (neon) {
+    try {
+      await ensureNeonInit(neon);
+      const rows = await neon`SELECT * FROM "Lead" ORDER BY "createdAt" DESC`;
+      return rows.map(normalizeLeadRow);
+    } catch (err) {
+      console.warn("Neon getAllLeads error:", err.message);
+    }
+  }
+
   const turso = getTursoClient();
   if (turso) {
     try {
@@ -602,6 +798,7 @@ export async function getAllLeads() {
       console.warn("Turso getAllLeads error, falling back to local SQLite:", err.message);
     }
   }
+
   const database = getDb();
   return database.prepare("SELECT * FROM Lead ORDER BY createdAt DESC").all();
 }
@@ -621,6 +818,34 @@ export async function updateLead(id, dataOrStatus, maybeNotes) {
   } else {
     status = dataOrStatus;
     notes = maybeNotes;
+  }
+
+  const neon = getNeonClient();
+  if (neon) {
+    try {
+      await ensureNeonInit(neon);
+      if (name || phone || loanType) {
+        await neon`
+          UPDATE "Lead" SET
+            name = COALESCE(${name || null}, name),
+            phone = COALESCE(${phone || null}, phone),
+            "loanType" = COALESCE(${loanType || null}, "loanType"),
+            "loanAmount" = COALESCE(${loanAmount || null}, "loanAmount"),
+            city = COALESCE(${city || null}, city),
+            source = COALESCE(${source || null}, source),
+            status = COALESCE(${status || null}, status),
+            notes = ${notes !== undefined ? notes : null},
+            "updatedAt" = NOW()
+          WHERE id = ${id}
+        `;
+      } else {
+        await neon`
+          UPDATE "Lead" SET status = ${status}, notes = ${notes !== undefined ? notes : null}, "updatedAt" = NOW() WHERE id = ${id}
+        `;
+      }
+    } catch (err) {
+      console.warn("Neon updateLead error:", err.message);
+    }
   }
 
   const turso = getTursoClient();
@@ -682,12 +907,20 @@ export async function updateLead(id, dataOrStatus, maybeNotes) {
     } else {
       database.prepare("UPDATE Lead SET status = ?, notes = ?, updatedAt = datetime('now') WHERE id = ?").run(status, notes, id);
     }
-  } catch (err) {
-    // Expected on serverless cold write if using Turso
-  }
+  } catch (err) {}
 }
 
 export async function deleteLead(id) {
+  const neon = getNeonClient();
+  if (neon) {
+    try {
+      await ensureNeonInit(neon);
+      await neon`DELETE FROM "Lead" WHERE id = ${id}`;
+    } catch (err) {
+      console.warn("Neon deleteLead error:", err.message);
+    }
+  }
+
   const turso = getTursoClient();
   if (turso) {
     try {
@@ -705,6 +938,21 @@ export async function deleteLead(id) {
 }
 
 export async function getLeadStats() {
+  const neon = getNeonClient();
+  if (neon) {
+    try {
+      await ensureNeonInit(neon);
+      const totalRes = await neon`SELECT count(*)::int as count FROM "Lead"`;
+      const newRes = await neon`SELECT count(*)::int as count FROM "Lead" WHERE status = 'New'`;
+      return {
+        total: totalRes[0]?.count || 0,
+        newLeads: newRes[0]?.count || 0,
+      };
+    } catch (err) {
+      console.warn("Neon getLeadStats error:", err.message);
+    }
+  }
+
   const turso = getTursoClient();
   if (turso) {
     try {
@@ -719,6 +967,7 @@ export async function getLeadStats() {
       console.warn("Turso getLeadStats error:", err.message);
     }
   }
+
   const database = getDb();
   const total = database.prepare("SELECT COUNT(*) as count FROM Lead").get().count;
   const newLeads = database.prepare("SELECT COUNT(*) as count FROM Lead WHERE status = 'New'").get().count;
@@ -727,6 +976,17 @@ export async function getLeadStats() {
 
 // --- BLOGS ---
 export async function getAllBlogs() {
+  const neon = getNeonClient();
+  if (neon) {
+    try {
+      await ensureNeonInit(neon);
+      const rows = await neon`SELECT * FROM "Blog" ORDER BY "createdAt" DESC, date DESC`;
+      return rows.map(normalizeBlogRow);
+    } catch (err) {
+      console.warn("Neon getAllBlogs error, attempting fallback:", err.message);
+    }
+  }
+
   const turso = getTursoClient();
   if (turso) {
     try {
@@ -737,11 +997,23 @@ export async function getAllBlogs() {
       console.warn("Turso getAllBlogs error, falling back to local SQLite:", err.message);
     }
   }
+
   const database = getDb();
   return database.prepare("SELECT * FROM Blog ORDER BY createdAt DESC, date DESC").all();
 }
 
 export async function getBlogBySlug(slug) {
+  const neon = getNeonClient();
+  if (neon) {
+    try {
+      await ensureNeonInit(neon);
+      const rows = await neon`SELECT * FROM "Blog" WHERE slug = ${slug} LIMIT 1`;
+      if (rows.length > 0) return normalizeBlogRow(rows[0]);
+    } catch (err) {
+      console.warn("Neon getBlogBySlug error:", err.message);
+    }
+  }
+
   const turso = getTursoClient();
   if (turso) {
     try {
@@ -755,18 +1027,34 @@ export async function getBlogBySlug(slug) {
       console.warn("Turso getBlogBySlug error, falling back to local SQLite:", err.message);
     }
   }
+
   const database = getDb();
   return database.prepare("SELECT * FROM Blog WHERE slug = ?").get(slug) || null;
 }
 
 export async function createBlog(data) {
-  const turso = getTursoClient();
   const id = data.id || ("blog-" + Math.random().toString(36).slice(2, 9) + Date.now().toString(36));
   const slug = await generateUniqueSlug(data.slug || data.title);
   const date = data.date || new Date().toISOString().split("T")[0];
   const imageUrl = data.imageUrl || null;
   const youtubeUrl = data.youtubeUrl || null;
 
+  const neon = getNeonClient();
+  if (neon) {
+    try {
+      await ensureNeonInit(neon);
+      await neon`
+        INSERT INTO "Blog" (id, slug, title, category, excerpt, content, date, "imageUrl", "youtubeUrl")
+        VALUES (${id}, ${slug}, ${data.title}, ${data.category}, ${data.excerpt}, ${data.content}, ${date}, ${imageUrl}, ${youtubeUrl})
+      `;
+      return { id, slug, title: data.title, category: data.category, excerpt: data.excerpt, content: data.content, date, imageUrl, youtubeUrl };
+    } catch (err) {
+      console.error("Neon createBlog error:", err.message);
+      throw err;
+    }
+  }
+
+  const turso = getTursoClient();
   if (turso) {
     try {
       await ensureTursoInit(turso);
@@ -775,13 +1063,13 @@ export async function createBlog(data) {
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
         args: cleanArgs([id, slug, data.title, data.category, data.excerpt, data.content, date, imageUrl, youtubeUrl]),
       });
+      return { id, slug, title: data.title, category: data.category, excerpt: data.excerpt, content: data.content, date, imageUrl, youtubeUrl };
     } catch (err) {
       console.error("Turso createBlog error:", err.message);
       throw err;
     }
   }
 
-  // Also sync locally if possible
   try {
     const database = getDb();
     const stmt = database.prepare(`
@@ -789,19 +1077,39 @@ export async function createBlog(data) {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     `);
     stmt.run(id, slug, data.title, data.category, data.excerpt, data.content, date, imageUrl, youtubeUrl);
-  } catch (err) {
-    // If local write fails on read-only serverless, Turso write already succeeded
-  }
+  } catch (err) {}
 
   return { id, slug, title: data.title, category: data.category, excerpt: data.excerpt, content: data.content, date, imageUrl, youtubeUrl };
 }
 
 export async function updateBlog(id, data) {
-  const turso = getTursoClient();
   const slug = await generateUniqueSlug(data.slug || data.title, id);
   const imageUrl = data.imageUrl || null;
   const youtubeUrl = data.youtubeUrl || null;
 
+  const neon = getNeonClient();
+  if (neon) {
+    try {
+      await ensureNeonInit(neon);
+      await neon`
+        UPDATE "Blog" SET
+          title = ${data.title},
+          category = ${data.category},
+          excerpt = ${data.excerpt},
+          content = ${data.content},
+          slug = ${slug},
+          "imageUrl" = ${imageUrl},
+          "youtubeUrl" = ${youtubeUrl}
+        WHERE id = ${id}
+      `;
+      return { id, slug, title: data.title, category: data.category, excerpt: data.excerpt, content: data.content, imageUrl, youtubeUrl };
+    } catch (err) {
+      console.error("Neon updateBlog error:", err.message);
+      throw err;
+    }
+  }
+
+  const turso = getTursoClient();
   if (turso) {
     try {
       await ensureTursoInit(turso);
@@ -809,6 +1117,7 @@ export async function updateBlog(id, data) {
         sql: `UPDATE Blog SET title = ?, category = ?, excerpt = ?, content = ?, slug = ?, imageUrl = ?, youtubeUrl = ? WHERE id = ?`,
         args: cleanArgs([data.title, data.category, data.excerpt, data.content, slug, imageUrl, youtubeUrl, id]),
       });
+      return { id, slug, title: data.title, category: data.category, excerpt: data.excerpt, content: data.content, imageUrl, youtubeUrl };
     } catch (err) {
       console.error("Turso updateBlog error:", err.message);
       throw err;
@@ -826,11 +1135,23 @@ export async function updateBlog(id, data) {
 }
 
 export async function deleteBlog(id) {
+  const neon = getNeonClient();
+  if (neon) {
+    try {
+      await ensureNeonInit(neon);
+      await neon`DELETE FROM "Blog" WHERE id = ${id}`;
+      return;
+    } catch (err) {
+      console.error("Neon deleteBlog error:", err.message);
+    }
+  }
+
   const turso = getTursoClient();
   if (turso) {
     try {
       await ensureTursoInit(turso);
       await turso.execute({ sql: "DELETE FROM Blog WHERE id = ?", args: cleanArgs([id]) });
+      return;
     } catch (err) {
       console.error("Turso deleteBlog error:", err.message);
     }
@@ -844,6 +1165,17 @@ export async function deleteBlog(id) {
 
 // --- TESTIMONIALS / CUSTOMER REVIEWS ---
 export async function getAllTestimonials() {
+  const neon = getNeonClient();
+  if (neon) {
+    try {
+      await ensureNeonInit(neon);
+      const rows = await neon`SELECT * FROM "Testimonial" ORDER BY date DESC, "createdAt" DESC`;
+      return rows.map(normalizeTestimonialRow);
+    } catch (err) {
+      console.warn("Neon getAllTestimonials error:", err.message);
+    }
+  }
+
   const turso = getTursoClient();
   if (turso) {
     try {
@@ -851,9 +1183,10 @@ export async function getAllTestimonials() {
       const res = await turso.execute("SELECT * FROM Testimonial ORDER BY date DESC, createdAt DESC");
       return res.rows;
     } catch (err) {
-      console.warn("Turso getAllTestimonials error:", err.message);
+      console.warn("Turso getAllTestimonials error, falling back to local SQLite:", err.message);
     }
   }
+
   const database = getDb();
   return database.prepare("SELECT * FROM Testimonial ORDER BY date DESC, createdAt DESC").all();
 }
@@ -864,6 +1197,20 @@ export async function createTestimonial(data) {
   const loanType = data.loanType || "Home Loan";
   const location = data.location || "Navi Mumbai";
   const date = data.date || new Date().toISOString().split("T")[0];
+
+  const neon = getNeonClient();
+  if (neon) {
+    try {
+      await ensureNeonInit(neon);
+      await neon`
+        INSERT INTO "Testimonial" (id, name, rating, testimonial, "loanType", location, date)
+        VALUES (${id}, ${data.name}, ${rating}, ${data.testimonial}, ${loanType}, ${location}, ${date})
+      `;
+      return { id };
+    } catch (err) {
+      console.warn("Neon createTestimonial error:", err.message);
+    }
+  }
 
   const turso = getTursoClient();
   if (turso) {
@@ -893,11 +1240,23 @@ export async function createTestimonial(data) {
 }
 
 export async function deleteTestimonial(id) {
+  const neon = getNeonClient();
+  if (neon) {
+    try {
+      await ensureNeonInit(neon);
+      await neon`DELETE FROM "Testimonial" WHERE id = ${id}`;
+      return;
+    } catch (err) {
+      console.warn("Neon deleteTestimonial error:", err.message);
+    }
+  }
+
   const turso = getTursoClient();
   if (turso) {
     try {
       await ensureTursoInit(turso);
       await turso.execute({ sql: "DELETE FROM Testimonial WHERE id = ?", args: cleanArgs([id]) });
+      return;
     } catch (err) {
       console.warn("Turso deleteTestimonial error:", err.message);
     }
@@ -921,6 +1280,20 @@ export function getAllSettings() {
 export async function setSetting(key, value) {
   cachedSettings[key] = value;
   const strVal = typeof value === "object" ? JSON.stringify(value) : String(value);
+
+  const neon = getNeonClient();
+  if (neon) {
+    try {
+      await ensureNeonInit(neon);
+      await neon`
+        INSERT INTO "Setting" (key, value, "updatedAt")
+        VALUES (${key}, ${strVal}, NOW())
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
+      `;
+    } catch (err) {
+      console.warn("Neon setSetting error:", err.message);
+    }
+  }
 
   const turso = getTursoClient();
   if (turso) {
@@ -947,6 +1320,30 @@ export async function setSetting(key, value) {
 
 // --- BACKUP & RESTORE ---
 export async function getDatabaseExport() {
+  const neon = getNeonClient();
+  if (neon) {
+    try {
+      await ensureNeonInit(neon);
+      const [leads, blogs, settings, testimonials] = await Promise.all([
+        neon`SELECT * FROM "Lead"`,
+        neon`SELECT * FROM "Blog"`,
+        neon`SELECT * FROM "Setting"`,
+        neon`SELECT * FROM "Testimonial"`,
+      ]);
+      return {
+        version: "1.0",
+        exportedAt: new Date().toISOString(),
+        source: "Neon Postgres Cloud",
+        leads: leads.map(normalizeLeadRow),
+        blogs: blogs.map(normalizeBlogRow),
+        settings,
+        testimonials: testimonials.map(normalizeTestimonialRow),
+      };
+    } catch (err) {
+      console.warn("Neon export error:", err.message);
+    }
+  }
+
   const turso = getTursoClient();
   if (turso) {
     try {
@@ -984,6 +1381,49 @@ export async function getDatabaseExport() {
 }
 
 export async function restoreDatabaseImport(data) {
+  const neon = getNeonClient();
+  if (neon) {
+    try {
+      await ensureNeonInit(neon);
+      if (data.blogs && Array.isArray(data.blogs)) {
+        await neon`DELETE FROM "Blog"`;
+        for (const b of data.blogs) {
+          await neon`
+            INSERT INTO "Blog" (id, slug, title, category, excerpt, content, date, "imageUrl", "youtubeUrl")
+            VALUES (${b.id}, ${b.slug}, ${b.title}, ${b.category}, ${b.excerpt}, ${b.content}, ${b.date}, ${b.imageUrl || null}, ${b.youtubeUrl || null})
+            ON CONFLICT (id) DO NOTHING
+          `;
+        }
+      }
+      if (data.leads && Array.isArray(data.leads)) {
+        await neon`DELETE FROM "Lead"`;
+        for (const l of data.leads) {
+          await neon`
+            INSERT INTO "Lead" (id, name, phone, email, "loanType", "employmentType", "loanAmount", city, source, status, notes)
+            VALUES (${l.id}, ${l.name}, ${l.phone}, ${l.email}, ${l.loanType}, ${l.employmentType}, ${l.loanAmount}, ${l.city}, ${l.source}, ${l.status}, ${l.notes})
+            ON CONFLICT (id) DO NOTHING
+          `;
+        }
+      }
+      if (data.settings && Array.isArray(data.settings)) {
+        for (const s of data.settings) {
+          const val = typeof s.value === "object" ? JSON.stringify(s.value) : s.value;
+          await neon`
+            INSERT INTO "Setting" (key, value) VALUES (${s.key}, ${val})
+            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+          `;
+          try {
+            cachedSettings[s.key] = JSON.parse(val);
+          } catch {
+            cachedSettings[s.key] = val;
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Neon restore error:", err.message);
+    }
+  }
+
   const turso = getTursoClient();
   if (turso) {
     try {
