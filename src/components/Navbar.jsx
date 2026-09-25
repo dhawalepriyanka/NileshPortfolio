@@ -39,9 +39,12 @@ export default function Navbar() {
     <header className={styles.header}>
       <div className={styles.container}>
         <div className={styles.logo}>
-          <Link href="/">
-            <div className={styles.logoText}>NILESH KUTE</div>
-            <div className={styles.logoSubText}>Home Loan Consultant</div>
+          <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
+            <img src="/logo.png" alt="Nilesh Kute Logo" style={{ width: "42px", height: "42px", borderRadius: "50%", objectFit: "cover", border: "1.5px solid #D9A62E" }} />
+            <div>
+              <div className={styles.logoText}>NILESH KUTE</div>
+              <div className={styles.logoSubText}>Home Loan Consultant</div>
+            </div>
           </Link>
         </div>
 

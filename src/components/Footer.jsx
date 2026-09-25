@@ -18,8 +18,13 @@ export default function Footer() {
           
           {/* 1. Brand Column */}
           <div className={styles.col}>
-            <div className={styles.logoText}>NILESH KUTE</div>
-            <div className={styles.logoSubText}>Home Loan Consultant</div>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+              <img src="/logo.png" alt="Nilesh Kute Logo" style={{ width: "45px", height: "45px", borderRadius: "50%", objectFit: "cover", border: "1.5px solid #D9A62E" }} />
+              <div>
+                <div className={styles.logoText}>NILESH KUTE</div>
+                <div className={styles.logoSubText}>Home Loan Consultant</div>
+              </div>
+            </div>
             <p className={styles.tagline}>
               Professional home loan guidance with 11+ years of experience. Providing doorstep loan assistance across Navi Mumbai & Mumbai.
             </p>
