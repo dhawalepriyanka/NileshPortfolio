@@ -48,6 +48,15 @@ export default function AdminDashboard() {
   const [articleFormat, setArticleFormat] = useState("standard"); // "standard" | "video"
   const [images, setImages] = useState([]);
   const [testimonials, setTestimonials] = useState([]);
+  const [isAddingTestimonial, setIsAddingTestimonial] = useState(false);
+  const [testimonialForm, setTestimonialForm] = useState({
+    name: "",
+    rating: 5,
+    loanType: "Home Loan",
+    location: "Navi Mumbai",
+    testimonial: "",
+    date: new Date().toISOString().split("T")[0],
+  });
   const [settings, setSettings] = useState({
     siteTitle: "Nilesh Kute - Home Loan Consultant",
     phone: "8356008675",
@@ -237,9 +246,31 @@ export default function AdminDashboard() {
   };
 
   const fetchTestimonials = async () => {
+    let localVault = [];
+    try {
+      const saved = localStorage.getItem("nilesh_admin_testimonials_vault");
+      if (saved) localVault = JSON.parse(saved);
+    } catch (e) {}
+
     try {
       const res = await fetch(`/api/testimonials?t=${Date.now()}`, { cache: "no-store" });
-      if (res.ok) setTestimonials(await res.json());
+      if (res.ok) {
+        const serverData = await res.json();
+        const map = new Map();
+        if (Array.isArray(serverData)) {
+          serverData.forEach(r => { if (r && r.id) map.set(r.id, r); });
+        }
+        if (Array.isArray(localVault)) {
+          localVault.forEach(r => { if (r && r.id) map.set(r.id, r); });
+        }
+        const merged = Array.from(map.values()).sort(
+          (a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0)
+        );
+        setTestimonials(merged);
+        try {
+          localStorage.setItem("nilesh_admin_testimonials_vault", JSON.stringify(merged));
+        } catch (e) {}
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -262,6 +293,14 @@ export default function AdminDashboard() {
           if (savedBlogs) {
             const parsed = JSON.parse(savedBlogs);
             if (Array.isArray(parsed) && parsed.length > 0) setBlogs(parsed);
+          }
+        } catch (e) {}
+
+        try {
+          const savedTestimonials = localStorage.getItem("nilesh_admin_testimonials_vault");
+          if (savedTestimonials) {
+            const parsed = JSON.parse(savedTestimonials);
+            if (Array.isArray(parsed) && parsed.length > 0) setTestimonials(parsed);
           }
         } catch (e) {}
 
@@ -334,6 +373,57 @@ export default function AdminDashboard() {
       console.error(e);
       showToast("Error deleting review.");
       fetchTestimonials();
+    }
+  };
+
+  const handleAddTestimonial = async (e) => {
+    e.preventDefault();
+    if (!testimonialForm.name.trim() || !testimonialForm.testimonial.trim()) {
+      showToast("Please enter customer name and review text.");
+      return;
+    }
+
+    const tempId = "rev-" + Math.random().toString(36).slice(2, 8) + Date.now().toString(36);
+    const newRev = {
+      id: tempId,
+      name: testimonialForm.name.trim(),
+      rating: Number(testimonialForm.rating) || 5,
+      loanType: testimonialForm.loanType || "Home Loan",
+      location: testimonialForm.location ? testimonialForm.location.trim() : "Navi Mumbai",
+      testimonial: testimonialForm.testimonial.trim(),
+      date: testimonialForm.date || new Date().toISOString().split("T")[0],
+    };
+
+    setTestimonials(prev => {
+      const updated = [newRev, ...prev.filter(r => r.id !== tempId)];
+      try {
+        localStorage.setItem("nilesh_admin_testimonials_vault", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    setIsAddingTestimonial(false);
+    setTestimonialForm({
+      name: "",
+      rating: 5,
+      loanType: "Home Loan",
+      location: "Navi Mumbai",
+      testimonial: "",
+      date: new Date().toISOString().split("T")[0],
+    });
+    showToast("Customer review added successfully!");
+
+    try {
+      const res = await fetch("/api/testimonials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newRev),
+      });
+      if (res.ok) {
+        fetchTestimonials();
+      }
+    } catch (err) {
+      console.error("Error creating review:", err);
     }
   };
 
@@ -1912,21 +2002,39 @@ export default function AdminDashboard() {
               <h2 style={{ color: "#071A3D", margin: 0 }}>Customer Reviews &amp; Testimonials</h2>
               <p style={{ color: "#64748B", fontSize: "0.9rem" }}>Manage customer reviews displayed on the website.</p>
             </div>
-            <Link
-              href="/reviews"
-              target="_blank"
-              style={{
-                background: "#071A3D",
-                color: "#D9A62E",
-                padding: "8px 16px",
-                borderRadius: "6px",
-                fontWeight: "700",
-                fontSize: "0.85rem",
-                textDecoration: "none"
-              }}
-            >
-              View Reviews Page ↗
-            </Link>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                type="button"
+                onClick={() => setIsAddingTestimonial(true)}
+                style={{
+                  background: "#D9A62E",
+                  color: "#071A3D",
+                  border: "none",
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  fontWeight: "700",
+                  fontSize: "0.85rem",
+                  cursor: "pointer"
+                }}
+              >
+                + Add Customer Review
+              </button>
+              <Link
+                href="/reviews"
+                target="_blank"
+                style={{
+                  background: "#071A3D",
+                  color: "#D9A62E",
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  fontWeight: "700",
+                  fontSize: "0.85rem",
+                  textDecoration: "none"
+                }}
+              >
+                View Reviews Page ↗
+              </Link>
+            </div>
           </div>
 
           <div style={{ overflowX: "auto" }}>
@@ -1990,6 +2098,132 @@ export default function AdminDashboard() {
               </tbody>
             </table>
           </div>
+
+          {/* Add Review Modal */}
+          {isAddingTestimonial && (
+            <div style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.6)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
+              padding: "20px"
+            }}>
+              <div style={{
+                background: "#fff",
+                borderRadius: "8px",
+                maxWidth: "520px",
+                width: "100%",
+                padding: "24px",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.2)"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+                  <h3 style={{ margin: 0, color: "#071A3D" }}>Add Customer Review</h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingTestimonial(false)}
+                    style={{ background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer", color: "#64748B" }}
+                  >
+                    &times;
+                  </button>
+                </div>
+                <form onSubmit={handleAddTestimonial}>
+                  <div style={{ marginBottom: "12px" }}>
+                    <label style={{ fontWeight: "600", fontSize: "0.85rem", display: "block", marginBottom: "4px" }}>Customer Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Ramesh Kulkarni"
+                      value={testimonialForm.name}
+                      onChange={e => setTestimonialForm({ ...testimonialForm, name: e.target.value })}
+                      style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #CBD5E1" }}
+                    />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+                    <div>
+                      <label style={{ fontWeight: "600", fontSize: "0.85rem", display: "block", marginBottom: "4px" }}>Rating (Stars)</label>
+                      <select
+                        value={testimonialForm.rating}
+                        onChange={e => setTestimonialForm({ ...testimonialForm, rating: Number(e.target.value) })}
+                        style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #CBD5E1" }}
+                      >
+                        <option value={5}>5 Stars ★★★★★</option>
+                        <option value={4}>4 Stars ★★★★☆</option>
+                        <option value={3}>3 Stars ★★★☆☆</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontWeight: "600", fontSize: "0.85rem", display: "block", marginBottom: "4px" }}>Date</label>
+                      <input
+                        type="date"
+                        value={testimonialForm.date}
+                        onChange={e => setTestimonialForm({ ...testimonialForm, date: e.target.value })}
+                        style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #CBD5E1" }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+                    <div>
+                      <label style={{ fontWeight: "600", fontSize: "0.85rem", display: "block", marginBottom: "4px" }}>Loan Type</label>
+                      <select
+                        value={testimonialForm.loanType}
+                        onChange={e => setTestimonialForm({ ...testimonialForm, loanType: e.target.value })}
+                        style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #CBD5E1" }}
+                      >
+                        <option value="Home Loan">Home Loan</option>
+                        <option value="Balance Transfer">Balance Transfer</option>
+                        <option value="Top-Up Loan">Top-Up Loan</option>
+                        <option value="Loan Against Property (LAP)">Loan Against Property (LAP)</option>
+                        <option value="Business Loan">Business Loan</option>
+                        <option value="NRI Home Loan">NRI Home Loan</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontWeight: "600", fontSize: "0.85rem", display: "block", marginBottom: "4px" }}>City / Area</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Kharghar, Navi Mumbai"
+                        value={testimonialForm.location}
+                        onChange={e => setTestimonialForm({ ...testimonialForm, location: e.target.value })}
+                        style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #CBD5E1" }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: "16px" }}>
+                    <label style={{ fontWeight: "600", fontSize: "0.85rem", display: "block", marginBottom: "4px" }}>Review Text *</label>
+                    <textarea
+                      required
+                      rows={3}
+                      placeholder="Enter customer testimonial..."
+                      value={testimonialForm.testimonial}
+                      onChange={e => setTestimonialForm({ ...testimonialForm, testimonial: e.target.value })}
+                      style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #CBD5E1" }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingTestimonial(false)}
+                      style={{ background: "#E2E8F0", color: "#334155", border: "none", padding: "8px 16px", borderRadius: "4px", cursor: "pointer", fontWeight: "600" }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      style={{ background: "#071A3D", color: "#D9A62E", border: "none", padding: "8px 20px", borderRadius: "4px", cursor: "pointer", fontWeight: "700" }}
+                    >
+                      Save Review
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

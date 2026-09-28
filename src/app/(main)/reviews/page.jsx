@@ -9,6 +9,7 @@ export default function CustomerReviewsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [whatsapp, setWhatsapp] = useState("918356008675");
   const [toast, setToast] = useState("");
 
@@ -22,7 +23,29 @@ export default function CustomerReviewsPage() {
 
   const showToast = (msg) => {
     setToast(msg);
-    setTimeout(() => setToast(""), 3500);
+    setTimeout(() => setToast(""), 4000);
+  };
+
+  const mergeWithVault = (serverReviews) => {
+    let localVault = [];
+    try {
+      const saved = typeof window !== "undefined" ? localStorage.getItem("nilesh_customer_reviews_vault") : null;
+      if (saved) localVault = JSON.parse(saved);
+    } catch (e) {
+      console.warn("Vault read warning:", e);
+    }
+
+    const map = new Map();
+    if (Array.isArray(serverReviews)) {
+      serverReviews.forEach((r) => { if (r && (r.id || r.testimonial)) map.set(r.id || r.testimonial, r); });
+    }
+    if (Array.isArray(localVault)) {
+      localVault.forEach((r) => { if (r && (r.id || r.testimonial)) map.set(r.id || r.testimonial, r); });
+    }
+
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0)
+    );
   };
 
   const fetchReviews = async () => {
@@ -30,10 +53,16 @@ export default function CustomerReviewsPage() {
       const res = await fetch(`/api/testimonials?t=${Date.now()}`, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
-        setReviews(data);
+        const merged = mergeWithVault(data);
+        setReviews(merged);
+        try {
+          if (typeof window !== "undefined") {
+            localStorage.setItem("nilesh_customer_reviews_vault", JSON.stringify(merged));
+          }
+        } catch (e) {}
       }
     } catch (err) {
-      console.error(err);
+      console.error("fetchReviews error:", err);
     } finally {
       setLoading(false);
     }
@@ -42,25 +71,54 @@ export default function CustomerReviewsPage() {
   useEffect(() => {
     let active = true;
 
-    fetch(`/api/testimonials?t=${Date.now()}`, { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (active && Array.isArray(data)) setReviews(data);
-      })
-      .catch((err) => console.error(err))
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+    const timer = setTimeout(() => {
+      // 1. Initial load from local vault to prevent delay
+      try {
+        const saved = typeof window !== "undefined" ? localStorage.getItem("nilesh_customer_reviews_vault") : null;
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setReviews(parsed);
+            setLoading(false);
+          }
+        }
+      } catch {
+        // Ignore JSON errors
+      }
 
-    fetch("/api/settings")
-      .then((res) => res.json())
-      .then((data) => {
-        if (active && data && data.whatsapp) setWhatsapp(data.whatsapp);
-      })
-      .catch(() => {});
+      // 2. Fetch fresh reviews from server
+      fetch(`/api/testimonials?t=${Date.now()}`, { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          if (active && Array.isArray(data)) {
+            const merged = mergeWithVault(data);
+            setReviews(merged);
+            try {
+              if (typeof window !== "undefined") {
+                localStorage.setItem("nilesh_customer_reviews_vault", JSON.stringify(merged));
+              }
+            } catch {
+              // Ignore localStorage write error
+            }
+          }
+        })
+        .catch((err) => console.error("Initial fetch error:", err))
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+
+      // 3. Fetch whatsapp settings
+      fetch("/api/settings")
+        .then((res) => res.json())
+        .then((data) => {
+          if (active && data && data.whatsapp) setWhatsapp(data.whatsapp);
+        })
+        .catch(() => {});
+    }, 0);
 
     return () => {
       active = false;
+      clearTimeout(timer);
     };
   }, []);
 
@@ -71,30 +129,77 @@ export default function CustomerReviewsPage() {
       return;
     }
 
+    setIsSubmitting(true);
+
+    const tempId = "rev-" + Math.random().toString(36).slice(2, 8) + Date.now().toString(36);
+    const currentDate = new Date().toISOString().split("T")[0];
+
+    const optimisticReview = {
+      id: tempId,
+      name: formData.name.trim(),
+      rating: Number(formData.rating) || 5,
+      loanType: formData.loanType || "Home Loan",
+      location: formData.location ? formData.location.trim() : "Navi Mumbai",
+      testimonial: formData.testimonial.trim(),
+      date: currentDate,
+      createdAt: new Date().toISOString(),
+    };
+
+    // 1. Optimistic instant UI update (immediately visible at the top)
+    setReviews((prev) => [optimisticReview, ...prev.filter((r) => r.id !== tempId)]);
+
+    // 2. Save immediately to local vault
+    try {
+      const saved = typeof window !== "undefined" ? localStorage.getItem("nilesh_customer_reviews_vault") : null;
+      const vault = saved ? JSON.parse(saved) : [];
+      const updatedVault = [optimisticReview, ...vault.filter((v) => v.id !== tempId)];
+      if (typeof window !== "undefined") {
+        localStorage.setItem("nilesh_customer_reviews_vault", JSON.stringify(updatedVault));
+      }
+    } catch (e) {}
+
+    // Close modal and reset form
+    setIsModalOpen(false);
+    setFormData({
+      name: "",
+      rating: 5,
+      loanType: "Home Loan",
+      location: "Navi Mumbai",
+      testimonial: "",
+    });
+
+    showToast("🎉 Thank you! Your review has been added.");
+
     try {
       const res = await fetch("/api/testimonials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          name: optimisticReview.name,
+          rating: optimisticReview.rating,
+          testimonial: optimisticReview.testimonial,
+          loanType: optimisticReview.loanType,
+          location: optimisticReview.location,
+          date: optimisticReview.date,
+        }),
       });
 
       if (res.ok) {
-        showToast("Thank you! Your review has been submitted.");
-        setIsModalOpen(false);
-        setFormData({
-          name: "",
-          rating: 5,
-          loanType: "Home Loan",
-          location: "Navi Mumbai",
-          testimonial: "",
-        });
+        const resData = await res.json().catch(() => null);
+        if (resData?.data?.id && resData.data.id !== tempId) {
+          // Replace tempId with server ID
+          setReviews((prev) =>
+            prev.map((r) => (r.id === tempId ? { ...r, id: resData.data.id } : r))
+          );
+        }
         fetchReviews();
       } else {
-        showToast("Failed to submit review. Please try again.");
+        console.warn("Server review submission failed, kept in local vault");
       }
     } catch (err) {
-      console.error(err);
-      showToast("Error submitting review.");
+      console.error("Error submitting review:", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -128,7 +233,8 @@ export default function CustomerReviewsPage() {
             borderRadius: "8px",
             fontWeight: "700",
             zIndex: 10000,
-            boxShadow: "0 6px 20px rgba(0,0,0,0.2)",
+            boxShadow: "0 6px 20px rgba(0,0,0,0.25)",
+            border: "1px solid rgba(217, 166, 46, 0.4)",
           }}
         >
           {toast}
@@ -216,8 +322,8 @@ export default function CustomerReviewsPage() {
                   <div>
                     <div className={styles.cardHeader}>
                       <div className={styles.stars}>
-                        {"★".repeat(item.rating || 5)}
-                        {"☆".repeat(5 - (item.rating || 5))}
+                        {"★".repeat(Math.max(1, Math.min(5, item.rating || 5)))}
+                        {"☆".repeat(Math.max(0, 5 - Math.max(1, Math.min(5, item.rating || 5))))}
                       </div>
                       <span className={styles.verifiedBadge}>
                         ✓ Verified Loan Client
@@ -238,7 +344,9 @@ export default function CustomerReviewsPage() {
                     <div className={styles.locationMeta}>
                       <div>📍 {item.location || "Navi Mumbai"}</div>
                       <div style={{ fontSize: "0.75rem", marginTop: "2px" }}>
-                        {item.date ? new Date(item.date).toLocaleDateString("en-IN", { month: "short", year: "numeric" }) : ""}
+                        {item.date && !isNaN(new Date(item.date).getTime())
+                          ? new Date(item.date).toLocaleDateString("en-IN", { month: "short", year: "numeric" })
+                          : item.date || "Recent"}
                       </div>
                     </div>
                   </div>
@@ -364,8 +472,8 @@ export default function CustomerReviewsPage() {
                 ></textarea>
               </div>
 
-              <button type="submit" className={styles.submitBtn}>
-                Submit Review
+              <button type="submit" className={styles.submitBtn} disabled={isSubmitting}>
+                {isSubmitting ? "Submitting..." : "Submit Review"}
               </button>
             </form>
           </div>
