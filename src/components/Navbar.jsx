@@ -40,7 +40,18 @@ export default function Navbar() {
       <div className={styles.container}>
         <div className={styles.logo}>
           <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
-            <img src="/logo.png" alt="Nilesh Kute Logo" style={{ width: "42px", height: "42px", borderRadius: "50%", objectFit: "cover", border: "1.5px solid #D9A62E" }} />
+            <img
+              src="/logo.png"
+              alt="Nilesh Kute Logo"
+              style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "50%",
+                objectFit: "cover",
+                border: "1.5px solid #D9A62E",
+                flexShrink: 0
+              }}
+            />
             <div>
               <div className={styles.logoText}>NILESH KUTE</div>
               <div className={styles.logoSubText}>Home Loan Consultant</div>
@@ -66,8 +77,17 @@ export default function Navbar() {
 
         {/* Right CTA */}
         <div className={styles.headerCta}>
-          <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noreferrer" className={styles.whatsappBtn}>
-            WhatsApp
+          <a
+            href={`https://wa.me/${whatsapp}`}
+            target="_blank"
+            rel="noreferrer"
+            className={styles.whatsappBtn}
+            title="Chat on WhatsApp"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+              <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.698c.969.54 1.761.813 2.796.813h.005c3.18 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.767-5.773-5.767zm7.595 5.767c0 4.189-3.407 7.596-7.596 7.596-1.332 0-2.586-.347-3.676-.952l-4.354 1.141 1.161-4.243c-.705-1.162-1.077-2.484-1.077-3.842 0-4.189 3.407-7.596 7.596-7.596 4.189 0 7.596 3.407 7.596 7.596z" />
+            </svg>
+            <span>WhatsApp</span>
           </a>
           <a href="/apply" className={styles.applyBtn}>
             Apply Now
@@ -97,11 +117,20 @@ export default function Navbar() {
             </li>
           ))}
           <li className={styles.mobileCtaWrapper}>
-            <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noreferrer" className={styles.mobileWhatsappBtn}>
-              WhatsApp
+            <a
+              href={`https://wa.me/${whatsapp}`}
+              target="_blank"
+              rel="noreferrer"
+              className={styles.mobileWhatsappBtn}
+            >
+              💬 WhatsApp Consultation
             </a>
-            <a href="/apply" className={styles.mobileApplyBtn} onClick={() => setIsOpen(false)}>
-              Apply Now
+            <a
+              href="/apply"
+              className={styles.mobileApplyBtn}
+              onClick={() => setIsOpen(false)}
+            >
+              Apply for Loan →
             </a>
           </li>
         </ul>
