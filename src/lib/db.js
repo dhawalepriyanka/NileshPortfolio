@@ -641,7 +641,7 @@ try {
 }
 
 // --- SLUG GENERATOR ---
-async function generateUniqueSlug(text, currentId = null) {
+async function generateUniqueSlug(text, currentId = null, currentSlug = null) {
   let base = (text || "article")
     .toString()
     .toLowerCase()
@@ -651,6 +651,11 @@ async function generateUniqueSlug(text, currentId = null) {
     .replace(/^-+|-+$/g, "");
 
   if (!base) base = "article-" + Date.now().toString(36);
+
+  // If already assigned this exact slug or base matches currentSlug, preserve it
+  if (currentSlug && (base === currentSlug.toLowerCase() || (text && text.toLowerCase().trim() === currentSlug.toLowerCase()))) {
+    return currentSlug;
+  }
 
   let slug = base;
   let counter = 1;
@@ -1034,7 +1039,7 @@ export async function getBlogBySlug(slug) {
 
 export async function createBlog(data) {
   const id = data.id || ("blog-" + Math.random().toString(36).slice(2, 9) + Date.now().toString(36));
-  const slug = await generateUniqueSlug(data.slug || data.title);
+  const slug = await generateUniqueSlug(data.slug || data.title, id, data.slug);
   const date = data.date || new Date().toISOString().split("T")[0];
   const imageUrl = data.imageUrl || null;
   const youtubeUrl = data.youtubeUrl || null;
@@ -1083,7 +1088,8 @@ export async function createBlog(data) {
 }
 
 export async function updateBlog(id, data) {
-  const slug = await generateUniqueSlug(data.slug || data.title, id);
+  const currentSlug = data.slug || null;
+  const slug = await generateUniqueSlug(data.slug || data.title, id, currentSlug);
   const imageUrl = data.imageUrl || null;
   const youtubeUrl = data.youtubeUrl || null;
 
@@ -1091,7 +1097,7 @@ export async function updateBlog(id, data) {
   if (neon) {
     try {
       await ensureNeonInit(neon);
-      await neon`
+      let rows = await neon`
         UPDATE "Blog" SET
           title = ${data.title},
           category = ${data.category},
@@ -1100,9 +1106,18 @@ export async function updateBlog(id, data) {
           slug = ${slug},
           "imageUrl" = ${imageUrl},
           "youtubeUrl" = ${youtubeUrl}
-        WHERE id = ${id}
+        WHERE id = ${id} OR (slug IS NOT NULL AND slug = ${data.slug || slug})
+        RETURNING *;
       `;
-      return { id, slug, title: data.title, category: data.category, excerpt: data.excerpt, content: data.content, imageUrl, youtubeUrl };
+      if (!rows || rows.length === 0) {
+        const date = data.date || new Date().toISOString().split("T")[0];
+        rows = await neon`
+          INSERT INTO "Blog" (id, slug, title, category, excerpt, content, date, "imageUrl", "youtubeUrl")
+          VALUES (${id}, ${slug}, ${data.title}, ${data.category}, ${data.excerpt}, ${data.content}, ${date}, ${imageUrl}, ${youtubeUrl})
+          RETURNING *;
+        `;
+      }
+      return normalizeBlogRow(rows[0]) || { id, slug, title: data.title, category: data.category, excerpt: data.excerpt, content: data.content, imageUrl, youtubeUrl };
     } catch (err) {
       console.error("Neon updateBlog error:", err.message);
       throw err;
@@ -1113,10 +1128,18 @@ export async function updateBlog(id, data) {
   if (turso) {
     try {
       await ensureTursoInit(turso);
-      await turso.execute({
-        sql: `UPDATE Blog SET title = ?, category = ?, excerpt = ?, content = ?, slug = ?, imageUrl = ?, youtubeUrl = ? WHERE id = ?`,
-        args: cleanArgs([data.title, data.category, data.excerpt, data.content, slug, imageUrl, youtubeUrl, id]),
+      const res = await turso.execute({
+        sql: `UPDATE Blog SET title = ?, category = ?, excerpt = ?, content = ?, slug = ?, imageUrl = ?, youtubeUrl = ? WHERE id = ? OR slug = ?`,
+        args: cleanArgs([data.title, data.category, data.excerpt, data.content, slug, imageUrl, youtubeUrl, id, data.slug || slug]),
       });
+      if (res.rowsAffected === 0) {
+        const date = data.date || new Date().toISOString().split("T")[0];
+        await turso.execute({
+          sql: `INSERT OR REPLACE INTO Blog (id, slug, title, category, excerpt, content, date, imageUrl, youtubeUrl, createdAt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+          args: cleanArgs([id, slug, data.title, data.category, data.excerpt, data.content, date, imageUrl, youtubeUrl]),
+        });
+      }
       return { id, slug, title: data.title, category: data.category, excerpt: data.excerpt, content: data.content, imageUrl, youtubeUrl };
     } catch (err) {
       console.error("Turso updateBlog error:", err.message);
@@ -1126,9 +1149,16 @@ export async function updateBlog(id, data) {
 
   try {
     const database = getDb();
-    database.prepare(`
-      UPDATE Blog SET title = ?, category = ?, excerpt = ?, content = ?, slug = ?, imageUrl = ?, youtubeUrl = ? WHERE id = ?
-    `).run(data.title, data.category, data.excerpt, data.content, slug, imageUrl, youtubeUrl, id);
+    const info = database.prepare(`
+      UPDATE Blog SET title = ?, category = ?, excerpt = ?, content = ?, slug = ?, imageUrl = ?, youtubeUrl = ? WHERE id = ? OR slug = ?
+    `).run(data.title, data.category, data.excerpt, data.content, slug, imageUrl, youtubeUrl, id, data.slug || slug);
+    if (info.changes === 0) {
+      const date = data.date || new Date().toISOString().split("T")[0];
+      database.prepare(`
+        INSERT OR REPLACE INTO Blog (id, slug, title, category, excerpt, content, date, imageUrl, youtubeUrl, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `).run(id, slug, data.title, data.category, data.excerpt, data.content, date, imageUrl, youtubeUrl);
+    }
   } catch (err) {}
 
   return { id, slug, title: data.title, category: data.category, excerpt: data.excerpt, content: data.content, imageUrl, youtubeUrl };
@@ -1139,7 +1169,7 @@ export async function deleteBlog(id) {
   if (neon) {
     try {
       await ensureNeonInit(neon);
-      await neon`DELETE FROM "Blog" WHERE id = ${id}`;
+      await neon`DELETE FROM "Blog" WHERE id = ${id} OR slug = ${id}`;
       return;
     } catch (err) {
       console.error("Neon deleteBlog error:", err.message);
@@ -1150,7 +1180,7 @@ export async function deleteBlog(id) {
   if (turso) {
     try {
       await ensureTursoInit(turso);
-      await turso.execute({ sql: "DELETE FROM Blog WHERE id = ?", args: cleanArgs([id]) });
+      await turso.execute({ sql: "DELETE FROM Blog WHERE id = ? OR slug = ?", args: cleanArgs([id, id]) });
       return;
     } catch (err) {
       console.error("Turso deleteBlog error:", err.message);
@@ -1159,7 +1189,7 @@ export async function deleteBlog(id) {
 
   try {
     const database = getDb();
-    database.prepare("DELETE FROM Blog WHERE id = ?").run(id);
+    database.prepare("DELETE FROM Blog WHERE id = ? OR slug = ?").run(id, id);
   } catch (err) {}
 }
 

@@ -203,8 +203,24 @@ export default function AdminDashboard() {
         const serverBlogs = await res.json();
         if (Array.isArray(serverBlogs)) {
           const map = new Map();
-          serverBlogs.forEach(b => { if (b && b.id) map.set(b.id, b); });
-          localVault.forEach(b => { if (b && b.id) map.set(b.id, b); });
+          // Load local vault first as fallback
+          localVault.forEach(b => {
+            if (b && (b.id || b.slug)) {
+              map.set(b.id || b.slug, b);
+            }
+          });
+          // Server canonical blogs take precedence over local vault
+          serverBlogs.forEach(b => {
+            if (b && (b.id || b.slug)) {
+              // Also remove any local item with the same slug or id to avoid duplicates
+              for (const [key, existing] of map.entries()) {
+                if (existing.slug === b.slug || existing.id === b.id) {
+                  map.delete(key);
+                }
+              }
+              map.set(b.id || b.slug, b);
+            }
+          });
           const merged = Array.from(map.values()).sort(
             (a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0)
           );
@@ -216,7 +232,7 @@ export default function AdminDashboard() {
           }
 
           if (serverBlogs.length < merged.length) {
-            const missing = merged.filter(b => !serverBlogs.some(sb => sb.id === b.id));
+            const missing = merged.filter(b => !serverBlogs.some(sb => sb.id === b.id || sb.slug === b.slug));
             if (missing.length > 0) syncBlogsToServer(missing);
           }
         }
@@ -623,55 +639,65 @@ export default function AdminDashboard() {
       return;
     }
 
+    const isEditing = !!editingBlog;
+    const editId = editingBlog?.id;
+    const editSlug = editingBlog?.slug;
+
+    // Use existing ID or generate consistent ID for new article
+    const articleId = editId || ("blog-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
+    const articleSlug = blogForm.slug || editSlug || blogForm.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+    const payload = {
+      ...blogForm,
+      id: articleId,
+      slug: articleSlug,
+      title: blogForm.title.trim(),
+      category: blogForm.category,
+      excerpt: blogForm.excerpt.trim(),
+      content: blogForm.content.trim(),
+      imageUrl: blogForm.imageUrl || "",
+      youtubeUrl: blogForm.youtubeUrl || ""
+    };
+
+    const method = isEditing ? "PUT" : "POST";
+
+    // Optimistically apply immediately to UI & local vault
+    if (isEditing) {
+      const updatedArticle = {
+        ...editingBlog,
+        ...payload,
+        id: articleId,
+        date: editingBlog.date || new Date().toISOString().split("T")[0],
+        updatedAt: new Date().toISOString()
+      };
+      setBlogs(prev => {
+        const updated = prev.map(b => (b.id === editId || (editSlug && b.slug === editSlug)) ? updatedArticle : b);
+        try { localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(updated)); } catch (err) {}
+        return updated;
+      });
+      showToast("Blog updated successfully!");
+    } else {
+      const newArticle = {
+        ...payload,
+        id: articleId,
+        date: new Date().toISOString().split("T")[0],
+        createdAt: new Date().toISOString()
+      };
+      setBlogs(prev => {
+        const updated = [newArticle, ...prev];
+        try { localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(updated)); } catch (err) {}
+        return updated;
+      });
+      showToast("Blog published successfully!");
+    }
+
+    // Reset form immediately
+    setBlogForm({ title: "", category: "Home Loan", excerpt: "", content: "", slug: "", imageUrl: "", youtubeUrl: "" });
+    setEditingBlog(null);
+    setArticleFormat("standard");
+
+    // Sync to API in background
     try {
-      const method = editingBlog ? "PUT" : "POST";
-      const payload = editingBlog ? { ...blogForm, id: editingBlog.id } : blogForm;
-
-      // Optimistically apply immediately to UI & local vault so UI is never delayed or wiped!
-      if (editingBlog) {
-        const updatedArticle = {
-          ...editingBlog,
-          ...payload,
-          id: editingBlog.id,
-          slug: payload.slug || editingBlog.slug || payload.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-          imageUrl: payload.imageUrl || "",
-          youtubeUrl: payload.youtubeUrl || "",
-          updatedAt: new Date().toISOString()
-        };
-        setBlogs(prev => {
-          const updated = prev.map(b => b.id === editingBlog.id ? updatedArticle : b);
-          try { localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(updated)); } catch (err) {}
-          return updated;
-        });
-        showToast("Blog updated successfully!");
-        setBlogForm({ title: "", category: "Home Loan", excerpt: "", content: "", slug: "", imageUrl: "", youtubeUrl: "" });
-        setEditingBlog(null);
-        setArticleFormat("standard");
-      } else {
-        const newSlug = payload.slug || payload.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-        const newArticle = {
-          id: "blog-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-          slug: newSlug,
-          title: payload.title.trim(),
-          category: payload.category,
-          excerpt: payload.excerpt.trim(),
-          content: payload.content.trim(),
-          date: new Date().toISOString().split("T")[0],
-          imageUrl: payload.imageUrl || "",
-          youtubeUrl: payload.youtubeUrl || "",
-          createdAt: new Date().toISOString()
-        };
-        setBlogs(prev => {
-          const updated = [newArticle, ...prev];
-          try { localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(updated)); } catch (err) {}
-          return updated;
-        });
-        showToast("Blog created successfully!");
-        setBlogForm({ title: "", category: "Home Loan", excerpt: "", content: "", slug: "", imageUrl: "", youtubeUrl: "" });
-        setArticleFormat("standard");
-      }
-
-      // Sync to API in background
       const res = await fetch("/api/blogs", {
         method,
         headers: { "Content-Type": "application/json" },
@@ -679,22 +705,18 @@ export default function AdminDashboard() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.data) {
-        // If server provided canonical id or slug, reconcile with state
-        if (data.data.id || data.data.slug) {
-          setBlogs(prev => {
-            const updated = prev.map(b => {
-              if (editingBlog && b.id === editingBlog.id) {
-                return { ...b, ...data.data };
-              }
-              if (!editingBlog && (b.title === payload.title)) {
-                return { ...b, ...data.data };
-              }
-              return b;
-            });
-            try { localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(updated)); } catch (err) {}
-            return updated;
+        setBlogs(prev => {
+          const updated = prev.map(b => {
+            if (b.id === articleId || (editId && b.id === editId) || (articleSlug && b.slug === articleSlug)) {
+              return { ...b, ...data.data };
+            }
+            return b;
           });
-        }
+          try { localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(updated)); } catch (err) {}
+          return updated;
+        });
+      } else if (!res.ok) {
+        showToast(data.error || "Server sync notice: Saved to local vault.");
       }
     } catch (e) {
       console.error(e);
@@ -702,16 +724,16 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteBlog = async (id) => {
+  const handleDeleteBlog = async (id, slug) => {
     if (!confirm("Are you sure you want to delete this article?")) return;
     setBlogs(prev => {
-      const updated = prev.filter(b => b.id !== id);
+      const updated = prev.filter(b => b.id !== id && (!slug || b.slug !== slug));
       try { localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(updated)); } catch (err) {}
       return updated;
     });
     showToast("Blog post deleted!");
     try {
-      await fetch(`/api/blogs?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      await fetch(`/api/blogs?id=${encodeURIComponent(id || slug)}`, { method: "DELETE" });
     } catch (e) { console.error(e); }
   };
 
@@ -1384,7 +1406,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <form onSubmit={handleSaveBlog} style={{ background: "#F8FAFC", padding: "25px", borderRadius: "8px", marginBottom: "30px", border: "1px solid #E2E8F0" }}>
+          <form id="blog-editor-form" onSubmit={handleSaveBlog} style={{ background: "#F8FAFC", padding: "25px", borderRadius: "8px", marginBottom: "30px", border: "1px solid #E2E8F0" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px", flexWrap: "wrap", gap: "10px" }}>
               <h3 style={{ color: "#071A3D", margin: 0 }}>
                 {editingBlog ? "Edit Article" : "Add New Blog Article"}
@@ -1790,14 +1812,18 @@ export default function AdminDashboard() {
                         setEditingBlog(b);
                         setArticleFormat(b.youtubeUrl ? "video" : "standard");
                         setBlogForm({
-                          title: b.title,
-                          category: b.category,
-                          excerpt: b.excerpt,
-                          content: b.content,
-                          slug: b.slug,
+                          title: b.title || "",
+                          category: b.category || "Home Loan",
+                          excerpt: b.excerpt || "",
+                          content: b.content || "",
+                          slug: b.slug || "",
                           imageUrl: b.imageUrl || "",
                           youtubeUrl: b.youtubeUrl || ""
                         });
+                        const formEl = document.getElementById("blog-editor-form");
+                        if (formEl) {
+                          formEl.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }
                       }}
                       style={{ background: "#e0f2fe", color: "#0284c7", border: "none", padding: "6px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "600" }}
                     >
@@ -1805,7 +1831,7 @@ export default function AdminDashboard() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDeleteBlog(b.id)}
+                      onClick={() => handleDeleteBlog(b.id, b.slug)}
                       style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "6px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "600" }}
                     >
                       Delete

@@ -41,6 +41,12 @@ export async function PUT(req) {
     const result = await updateBlog(body.id, body);
     revalidatePath("/", "layout");
     revalidatePath("/blog");
+    if (result?.slug) {
+      revalidatePath(`/blog/${result.slug}`);
+    }
+    if (body.slug && body.slug !== result?.slug) {
+      revalidatePath(`/blog/${body.slug}`);
+    }
     return NextResponse.json({ success: true, data: result });
   } catch (error) {
     console.error("Error updating blog:", error);
