@@ -1543,3 +1543,47 @@ export async function restoreDatabaseImport(data) {
     })();
   } catch (err) {}
 }
+
+export async function getDbStatus() {
+  const neon = getNeonClient();
+  if (neon && !neonDisabled) {
+    try {
+      await ensureNeonInit(neon);
+      await neon`SELECT 1`;
+      return {
+        provider: "Neon Postgres",
+        type: "neon",
+        status: "connected",
+        message: "Cloud Database (Neon Postgres) is connected & live.",
+        color: "#10B981"
+      };
+    } catch (err) {
+      console.warn("Neon status check error:", err.message);
+    }
+  }
+
+  const turso = getTursoClient();
+  if (turso && !tursoDisabled) {
+    try {
+      await ensureTursoInit(turso);
+      await turso.execute("SELECT 1");
+      return {
+        provider: "Turso SQLite",
+        type: "turso",
+        status: "connected",
+        message: "Cloud Database (Turso SQLite) is connected & live.",
+        color: "#10B981"
+      };
+    } catch (err) {
+      console.warn("Turso status check error:", err.message);
+    }
+  }
+
+  return {
+    provider: "Local Vault",
+    type: "local",
+    status: "local",
+    message: "Using browser local storage & local SQLite fallback.",
+    color: "#F59E0B"
+  };
+}

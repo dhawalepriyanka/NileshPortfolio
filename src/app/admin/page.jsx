@@ -113,6 +113,20 @@ export default function AdminDashboard() {
     setTimeout(() => setToast(""), 3500);
   };
 
+  const [dbStatus, setDbStatus] = useState(null);
+
+  const fetchDbStatus = async () => {
+    try {
+      const res = await fetch(`/api/db-status?t=${Date.now()}`, { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        setDbStatus(data);
+      }
+    } catch (e) {
+      console.warn("fetchDbStatus error:", e);
+    }
+  };
+
   const syncLeadsToServer = async (vaultList) => {
     try {
       for (const lead of vaultList) {
@@ -325,6 +339,7 @@ export default function AdminDashboard() {
         fetchImages();
         fetchSettings();
         fetchTestimonials();
+        fetchDbStatus();
       }
     }, 0);
     return () => clearTimeout(timer);
@@ -362,6 +377,7 @@ export default function AdminDashboard() {
       fetchImages();
       fetchSettings();
       fetchTestimonials();
+      fetchDbStatus();
     } else {
       setLoginError("Invalid Username or Password. Please try again.");
     }
@@ -1126,24 +1142,46 @@ export default function AdminDashboard() {
           </select>
         </div>
 
-        <button
-          type="button"
-          onClick={handleLogoutClick}
-          style={{
-            background: "#fee2e2",
-            color: "#dc2626",
-            border: "1px solid #fca5a5",
-            padding: "8px 16px",
-            borderRadius: "6px",
-            cursor: "pointer",
-            fontWeight: "700",
-            fontSize: "0.85rem",
-            transform: "none",
-            boxShadow: "none"
-          }}
-        >
-          🔒 Logout
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          {dbStatus && (
+            <div
+              title={dbStatus.message}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                background: dbStatus.type === "neon" || dbStatus.type === "turso" ? "#ECFDF5" : "#FEF3C7",
+                color: dbStatus.type === "neon" || dbStatus.type === "turso" ? "#065F46" : "#92400E",
+                border: `1px solid ${dbStatus.type === "neon" || dbStatus.type === "turso" ? "#A7F3D0" : "#FDE68A"}`,
+                padding: "6px 12px",
+                borderRadius: "20px",
+                fontSize: "0.8rem",
+                fontWeight: "700"
+              }}
+            >
+              <span style={{ fontSize: "0.7rem" }}>{dbStatus.type === "neon" || dbStatus.type === "turso" ? "🟢" : "🟡"}</span>
+              DB: {dbStatus.provider}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={handleLogoutClick}
+            style={{
+              background: "#fee2e2",
+              color: "#dc2626",
+              border: "1px solid #fca5a5",
+              padding: "8px 16px",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontWeight: "700",
+              fontSize: "0.85rem",
+              transform: "none",
+              boxShadow: "none"
+            }}
+          >
+            🔒 Logout
+          </button>
+        </div>
       </div>
 
       {/* 1. ENQUIRY MANAGEMENT */}
