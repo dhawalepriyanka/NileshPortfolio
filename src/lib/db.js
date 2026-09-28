@@ -7,8 +7,10 @@ import { neon } from "@neondatabase/serverless";
 // --- DATABASE PROVIDER DETECTION ---
 let tursoClient = null;
 let tursoInitPromise = null;
+let tursoDisabled = false;
 let neonSql = null;
 let neonInitPromise = null;
+let neonDisabled = false;
 
 function getTursoConfig() {
   const url =
@@ -39,13 +41,15 @@ function getNeonConfig() {
 }
 
 function getNeonClient() {
+  if (neonDisabled) return null;
   const url = getNeonConfig();
   if (!url) return null;
   if (!neonSql) {
     try {
       neonSql = neon(url);
     } catch (err) {
-      console.error("Failed to initialize Neon client:", err);
+      console.warn("Failed to initialize Neon client:", err);
+      neonDisabled = true;
       return null;
     }
   }
@@ -53,6 +57,7 @@ function getNeonClient() {
 }
 
 function getTursoClient() {
+  if (tursoDisabled) return null;
   const { url, authToken } = getTursoConfig();
   if (!url) return null;
 
@@ -63,7 +68,8 @@ function getTursoClient() {
         authToken: authToken || undefined,
       });
     } catch (err) {
-      console.error("Failed to initialize Turso client:", err);
+      console.warn("Failed to initialize Turso client:", err.message);
+      tursoDisabled = true;
       return null;
     }
   }
@@ -484,7 +490,9 @@ async function ensureTursoInit(client) {
         }
       });
     } catch (err) {
-      console.error("Error initializing Turso cloud tables:", err.message);
+      console.warn("Error initializing Turso cloud tables, disabling Turso:", err.message);
+      tursoDisabled = true;
+      tursoClient = null;
       tursoInitPromise = null;
     }
   })();
@@ -1054,8 +1062,7 @@ export async function createBlog(data) {
       `;
       return { id, slug, title: data.title, category: data.category, excerpt: data.excerpt, content: data.content, date, imageUrl, youtubeUrl };
     } catch (err) {
-      console.error("Neon createBlog error:", err.message);
-      throw err;
+      console.warn("Neon createBlog error, falling back:", err.message);
     }
   }
 
@@ -1070,8 +1077,11 @@ export async function createBlog(data) {
       });
       return { id, slug, title: data.title, category: data.category, excerpt: data.excerpt, content: data.content, date, imageUrl, youtubeUrl };
     } catch (err) {
-      console.error("Turso createBlog error:", err.message);
-      throw err;
+      console.warn("Turso createBlog error, falling back:", err.message);
+      if (err.message && (err.message.includes("404") || err.message.includes("401") || err.message.includes("403"))) {
+        tursoDisabled = true;
+        tursoClient = null;
+      }
     }
   }
 
@@ -1119,8 +1129,7 @@ export async function updateBlog(id, data) {
       }
       return normalizeBlogRow(rows[0]) || { id, slug, title: data.title, category: data.category, excerpt: data.excerpt, content: data.content, imageUrl, youtubeUrl };
     } catch (err) {
-      console.error("Neon updateBlog error:", err.message);
-      throw err;
+      console.warn("Neon updateBlog error, falling back:", err.message);
     }
   }
 
@@ -1142,8 +1151,11 @@ export async function updateBlog(id, data) {
       }
       return { id, slug, title: data.title, category: data.category, excerpt: data.excerpt, content: data.content, imageUrl, youtubeUrl };
     } catch (err) {
-      console.error("Turso updateBlog error:", err.message);
-      throw err;
+      console.warn("Turso updateBlog error, falling back:", err.message);
+      if (err.message && (err.message.includes("404") || err.message.includes("401") || err.message.includes("403"))) {
+        tursoDisabled = true;
+        tursoClient = null;
+      }
     }
   }
 
