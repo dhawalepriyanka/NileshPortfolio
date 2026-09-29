@@ -1271,14 +1271,14 @@ export async function getAllTestimonials() {
 }
 
 export async function createTestimonial(data) {
-  const id = "rev-" + Math.random().toString(36).slice(2, 8) + Date.now().toString(36);
+  const id = data.id || ("rev-" + Math.random().toString(36).slice(2, 8) + Date.now().toString(36));
   const rating = Number(data.rating) || 5;
   const loanType = data.loanType || "Home Loan";
   const location = data.location || "Navi Mumbai";
   const date = data.date || new Date().toISOString().split("T")[0];
 
   const neon = getNeonClient();
-  if (neon) {
+  if (neon && !neonDisabled) {
     try {
       await ensureNeonInit(neon);
       await neon`
@@ -1292,7 +1292,7 @@ export async function createTestimonial(data) {
   }
 
   const turso = getTursoClient();
-  if (turso) {
+  if (turso && !tursoDisabled) {
     try {
       await ensureTursoInit(turso);
       await turso.execute({
@@ -1303,6 +1303,10 @@ export async function createTestimonial(data) {
       return { id };
     } catch (err) {
       console.warn("Turso createTestimonial error:", err.message);
+      if (err.message && (err.message.includes("404") || err.message.includes("401") || err.message.includes("403"))) {
+        tursoDisabled = true;
+        tursoClient = null;
+      }
     }
   }
 
@@ -1318,32 +1322,62 @@ export async function createTestimonial(data) {
   return { id };
 }
 
-export async function deleteTestimonial(id) {
+export async function deleteTestimonial(id, name = null, testimonial = null) {
+  const targetId = id && id !== "undefined" && id !== "null" ? id : null;
+  const targetName = name && name !== "undefined" && name !== "null" ? name.trim() : null;
+  const targetText = testimonial && testimonial !== "undefined" && testimonial !== "null" ? testimonial.trim() : null;
+
   const neon = getNeonClient();
-  if (neon) {
+  if (neon && !neonDisabled) {
     try {
       await ensureNeonInit(neon);
-      await neon`DELETE FROM "Testimonial" WHERE id = ${id}`;
-      return;
+      if (targetId) {
+        await neon`DELETE FROM "Testimonial" WHERE id = ${targetId}`;
+      }
+      if (targetName) {
+        await neon`DELETE FROM "Testimonial" WHERE name = ${targetName}`;
+      }
+      if (targetText) {
+        await neon`DELETE FROM "Testimonial" WHERE testimonial = ${targetText}`;
+      }
     } catch (err) {
       console.warn("Neon deleteTestimonial error:", err.message);
     }
   }
 
   const turso = getTursoClient();
-  if (turso) {
+  if (turso && !tursoDisabled) {
     try {
       await ensureTursoInit(turso);
-      await turso.execute({ sql: "DELETE FROM Testimonial WHERE id = ?", args: cleanArgs([id]) });
-      return;
+      if (targetId) {
+        await turso.execute({ sql: "DELETE FROM Testimonial WHERE id = ?", args: cleanArgs([targetId]) });
+      }
+      if (targetName) {
+        await turso.execute({ sql: "DELETE FROM Testimonial WHERE name = ?", args: cleanArgs([targetName]) });
+      }
+      if (targetText) {
+        await turso.execute({ sql: "DELETE FROM Testimonial WHERE testimonial = ?", args: cleanArgs([targetText]) });
+      }
     } catch (err) {
       console.warn("Turso deleteTestimonial error:", err.message);
+      if (err.message && (err.message.includes("404") || err.message.includes("401") || err.message.includes("403"))) {
+        tursoDisabled = true;
+        tursoClient = null;
+      }
     }
   }
 
   try {
     const database = getDb();
-    database.prepare("DELETE FROM Testimonial WHERE id = ?").run(id);
+    if (targetId) {
+      database.prepare("DELETE FROM Testimonial WHERE id = ?").run(targetId);
+    }
+    if (targetName) {
+      database.prepare("DELETE FROM Testimonial WHERE name = ?").run(targetName);
+    }
+    if (targetText) {
+      database.prepare("DELETE FROM Testimonial WHERE testimonial = ?").run(targetText);
+    }
   } catch (err) {}
 }
 

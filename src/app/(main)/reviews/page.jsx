@@ -35,17 +35,20 @@ export default function CustomerReviewsPage() {
       console.warn("Vault read warning:", e);
     }
 
-    const map = new Map();
-    if (Array.isArray(serverReviews)) {
-      serverReviews.forEach((r) => { if (r && (r.id || r.testimonial)) map.set(r.id || r.testimonial, r); });
-    }
-    if (Array.isArray(localVault)) {
-      localVault.forEach((r) => { if (r && (r.id || r.testimonial)) map.set(r.id || r.testimonial, r); });
-    }
+    let deletedReviewIds = [];
+    try {
+      if (typeof window !== "undefined") {
+        deletedReviewIds = JSON.parse(localStorage.getItem("nilesh_deleted_review_ids") || "[]");
+      }
+    } catch (e) {}
 
-    return Array.from(map.values()).sort(
-      (a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0)
-    );
+    const source = (Array.isArray(serverReviews) && serverReviews.length > 0)
+      ? serverReviews
+      : (Array.isArray(localVault) && localVault.length > 0 ? localVault : (serverReviews || []));
+
+    return source
+      .filter((r) => r && !deletedReviewIds.includes(r.id) && !deletedReviewIds.includes(r.name) && !deletedReviewIds.includes(r.testimonial))
+      .sort((a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0));
   };
 
   const fetchReviews = async () => {
@@ -75,10 +78,12 @@ export default function CustomerReviewsPage() {
       // 1. Initial load from local vault to prevent delay
       try {
         const saved = typeof window !== "undefined" ? localStorage.getItem("nilesh_customer_reviews_vault") : null;
+        const deletedReviewIds = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("nilesh_deleted_review_ids") || "[]") : [];
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setReviews(parsed);
+            const clean = parsed.filter(r => r && !deletedReviewIds.includes(r.id) && !deletedReviewIds.includes(r.name) && !deletedReviewIds.includes(r.testimonial));
+            setReviews(clean);
             setLoading(false);
           }
         }
@@ -175,6 +180,7 @@ export default function CustomerReviewsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          id: optimisticReview.id,
           name: optimisticReview.name,
           rating: optimisticReview.rating,
           testimonial: optimisticReview.testimonial,

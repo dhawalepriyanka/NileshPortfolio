@@ -270,25 +270,33 @@ export default function AdminDashboard() {
       if (saved) localVault = JSON.parse(saved);
     } catch (e) {}
 
+    let deletedReviewIds = [];
+    try {
+      deletedReviewIds = JSON.parse(localStorage.getItem("nilesh_deleted_review_ids") || "[]");
+    } catch (e) {}
+
     try {
       const res = await fetch(`/api/testimonials?t=${Date.now()}`, { cache: "no-store" });
       if (res.ok) {
         const serverData = await res.json();
         if (Array.isArray(serverData)) {
-          if (serverData.length > 0) {
-            setTestimonials(serverData);
-            try {
-              localStorage.setItem("nilesh_admin_testimonials_vault", JSON.stringify(serverData));
-            } catch (e) {}
-          } else if (localVault.length > 0) {
-            setTestimonials(localVault);
-          } else {
-            setTestimonials([]);
-            try {
-              localStorage.setItem("nilesh_admin_testimonials_vault", JSON.stringify([]));
-            } catch (e) {}
-          }
+          const cleanServerData = serverData.filter(r =>
+            !deletedReviewIds.includes(r.id) &&
+            !deletedReviewIds.includes(r.name) &&
+            !deletedReviewIds.includes(r.testimonial)
+          );
+          setTestimonials(cleanServerData);
+          try {
+            localStorage.setItem("nilesh_admin_testimonials_vault", JSON.stringify(cleanServerData));
+          } catch (e) {}
         }
+      } else if (localVault.length > 0) {
+        const cleanVault = localVault.filter(r =>
+          !deletedReviewIds.includes(r.id) &&
+          !deletedReviewIds.includes(r.name) &&
+          !deletedReviewIds.includes(r.testimonial)
+        );
+        setTestimonials(cleanVault);
       }
     } catch (e) { console.error(e); }
   };
@@ -321,9 +329,17 @@ export default function AdminDashboard() {
 
         try {
           const savedTestimonials = localStorage.getItem("nilesh_admin_testimonials_vault");
+          const deletedReviewIds = JSON.parse(localStorage.getItem("nilesh_deleted_review_ids") || "[]");
           if (savedTestimonials) {
             const parsed = JSON.parse(savedTestimonials);
-            if (Array.isArray(parsed) && parsed.length > 0) setTestimonials(parsed);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const clean = parsed.filter(r =>
+                !deletedReviewIds.includes(r.id) &&
+                !deletedReviewIds.includes(r.name) &&
+                !deletedReviewIds.includes(r.testimonial)
+              );
+              setTestimonials(clean);
+            }
           }
         } catch (e) {}
 
@@ -369,6 +385,22 @@ export default function AdminDashboard() {
         }
       } catch (e) {}
 
+      try {
+        const savedTestimonials = localStorage.getItem("nilesh_admin_testimonials_vault");
+        const deletedReviewIds = JSON.parse(localStorage.getItem("nilesh_deleted_review_ids") || "[]");
+        if (savedTestimonials) {
+          const parsed = JSON.parse(savedTestimonials);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const clean = parsed.filter(r =>
+              !deletedReviewIds.includes(r.id) &&
+              !deletedReviewIds.includes(r.name) &&
+              !deletedReviewIds.includes(r.testimonial)
+            );
+            setTestimonials(clean);
+          }
+        }
+      } catch (e) {}
+
       fetchLeads();
       fetchBlogs();
       fetchImages();
@@ -386,24 +418,37 @@ export default function AdminDashboard() {
     showToast("Logged out successfully.");
   };
 
-  const handleDeleteTestimonial = async (id) => {
+  const handleDeleteTestimonial = async (id, name, text) => {
     if (!confirm("Are you sure you want to delete this customer review?")) return;
+
+    // Persist to deleted review IDs tombstone set immediately
+    try {
+      const existing = JSON.parse(localStorage.getItem("nilesh_deleted_review_ids") || "[]");
+      const toAdd = [id, name, text].filter(Boolean);
+      const updatedDeleted = Array.from(new Set([...existing, ...toAdd]));
+      localStorage.setItem("nilesh_deleted_review_ids", JSON.stringify(updatedDeleted));
+    } catch (e) {}
+
     setTestimonials(prev => {
-      const updated = prev.filter(r => r.id !== id);
+      const updated = prev.filter(r =>
+        r.id !== id &&
+        (!name || r.name !== name) &&
+        (!text || r.testimonial !== text)
+      );
       try { localStorage.setItem("nilesh_admin_testimonials_vault", JSON.stringify(updated)); } catch (e) {}
       return updated;
     });
+
+    showToast("Review deleted successfully!");
+
     try {
-      const res = await fetch(`/api/testimonials?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-      if (res.ok) {
-        showToast("Review deleted successfully!");
-        fetchTestimonials();
-      } else {
-        showToast("Review removed from list.");
-      }
+      const params = new URLSearchParams();
+      if (id) params.append("id", id);
+      if (name) params.append("name", name);
+      if (text) params.append("text", text);
+      await fetch(`/api/testimonials?${params.toString()}`, { method: "DELETE" });
     } catch (e) {
       console.error(e);
-      showToast("Review removed from list.");
     }
   };
 
@@ -424,6 +469,12 @@ export default function AdminDashboard() {
       testimonial: testimonialForm.testimonial.trim(),
       date: testimonialForm.date || new Date().toISOString().split("T")[0],
     };
+
+    try {
+      const existing = JSON.parse(localStorage.getItem("nilesh_deleted_review_ids") || "[]");
+      const filtered = existing.filter(x => x !== tempId && x !== newRev.name && x !== newRev.testimonial);
+      localStorage.setItem("nilesh_deleted_review_ids", JSON.stringify(filtered));
+    } catch (e) {}
 
     setTestimonials(prev => {
       const updated = [newRev, ...prev.filter(r => r.id !== tempId)];
@@ -2156,7 +2207,7 @@ export default function AdminDashboard() {
                       <td style={{ padding: "12px" }}>
                         <button
                           type="button"
-                          onClick={() => handleDeleteTestimonial(rev.id)}
+                          onClick={() => handleDeleteTestimonial(rev.id, rev.name, rev.testimonial)}
                           style={{
                             background: "#fee2e2",
                             color: "#dc2626",

@@ -34,6 +34,7 @@ export async function POST(req) {
     }
 
     const review = await createTestimonial({
+      id: body.id,
       name: name.trim(),
       rating: Number(rating) || 5,
       testimonial: testimonial.trim(),
@@ -66,9 +67,13 @@ export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-    if (!id) return NextResponse.json({ error: "ID is required" }, { status: 400 });
+    const name = searchParams.get("name");
+    const text = searchParams.get("text");
+    if (!id && !name && !text) {
+      return NextResponse.json({ error: "ID, name, or text is required" }, { status: 400 });
+    }
 
-    await deleteTestimonial(id);
+    await deleteTestimonial(id, name, text);
 
     try {
       revalidatePath("/reviews");
