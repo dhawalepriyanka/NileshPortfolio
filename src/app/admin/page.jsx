@@ -1251,6 +1251,30 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {dbStatus && dbStatus.type === "local" && (
+        <div style={{
+          background: "#FFFBEB",
+          border: "1px solid #FDE68A",
+          borderRadius: "8px",
+          padding: "12px 18px",
+          marginBottom: "24px",
+          fontSize: "0.85rem",
+          color: "#92400E",
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          lineHeight: "1.5"
+        }}>
+          <span style={{ fontSize: "1.2rem" }}>⚠️</span>
+          <div>
+            <strong>Cloud Database Status:</strong> {dbStatus.message}
+            <div style={{ fontSize: "0.8rem", color: "#B45309", marginTop: "3px" }}>
+              To enable permanent cloud storage across all devices, connect Neon Postgres in Vercel Project Settings &gt; Environment Variables.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 1. ENQUIRY MANAGEMENT */}
       {activeTab === "leads" && (
         <div>

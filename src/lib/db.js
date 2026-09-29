@@ -28,16 +28,24 @@ function getTursoConfig() {
 }
 
 function getNeonConfig() {
-  const url =
-    (process.env.DATABASE_URL &&
-    (process.env.DATABASE_URL.startsWith("postgres://") ||
-      process.env.DATABASE_URL.startsWith("postgresql://"))
-      ? process.env.DATABASE_URL
-      : null) ||
-    process.env.POSTGRES_URL ||
-    process.env.POSTGRES_PRISMA_URL;
+  const candidates = [
+    process.env.DATABASE_URL,
+    process.env.POSTGRES_URL,
+    process.env.POSTGRES_PRISMA_URL,
+    process.env.POSTGRES_URL_NON_POOLING,
+    process.env.NEON_DATABASE_URL,
+    process.env.POSTGRESQL_URL,
+  ];
 
-  return url || null;
+  for (const raw of candidates) {
+    if (!raw || typeof raw !== "string") continue;
+    const url = raw.trim().replace(/^["']|["']$/g, "");
+    if (url.startsWith("postgres://") || url.startsWith("postgresql://")) {
+      return url;
+    }
+  }
+
+  return null;
 }
 
 function getNeonClient() {
@@ -1616,45 +1624,66 @@ export async function restoreDatabaseImport(data) {
 }
 
 export async function getDbStatus() {
-  const neon = getNeonClient();
-  if (neon && !neonDisabled) {
-    try {
-      await ensureNeonInit(neon);
-      await neon`SELECT 1`;
-      return {
-        provider: "Neon Postgres",
-        type: "neon",
-        status: "connected",
-        message: "Cloud Database (Neon Postgres) is connected & live.",
-        color: "#10B981"
-      };
-    } catch (err) {
-      console.warn("Neon status check error:", err.message);
+  let neonError = null;
+  const neonUrl = getNeonConfig();
+  if (neonUrl && !neonDisabled) {
+    const neonClient = getNeonClient();
+    if (neonClient) {
+      try {
+        await ensureNeonInit(neonClient);
+        await neonClient`SELECT 1`;
+        return {
+          provider: "Neon Postgres",
+          type: "neon",
+          status: "connected",
+          message: "Cloud Database (Neon Postgres) is connected & live.",
+          color: "#10B981"
+        };
+      } catch (err) {
+        neonError = err.message;
+        console.warn("Neon status check error:", err.message);
+      }
     }
   }
 
-  const turso = getTursoClient();
-  if (turso && !tursoDisabled) {
-    try {
-      await ensureTursoInit(turso);
-      await turso.execute("SELECT 1");
-      return {
-        provider: "Turso SQLite",
-        type: "turso",
-        status: "connected",
-        message: "Cloud Database (Turso SQLite) is connected & live.",
-        color: "#10B981"
-      };
-    } catch (err) {
-      console.warn("Turso status check error:", err.message);
+  let tursoError = null;
+  const { url: tursoUrl } = getTursoConfig();
+  if (tursoUrl && !tursoDisabled) {
+    const tursoClient = getTursoClient();
+    if (tursoClient) {
+      try {
+        await ensureTursoInit(tursoClient);
+        await tursoClient.execute("SELECT 1");
+        return {
+          provider: "Turso SQLite",
+          type: "turso",
+          status: "connected",
+          message: "Cloud Database (Turso SQLite) is connected & live.",
+          color: "#10B981"
+        };
+      } catch (err) {
+        tursoError = err.message;
+        console.warn("Turso status check error:", err.message);
+      }
     }
+  }
+
+  let detail = "Using bundled SQLite fallback.";
+  if (neonError) {
+    detail = `Neon error: ${neonError}`;
+  } else if (!neonUrl && !tursoUrl) {
+    detail = "Neon/Turso credentials not detected in Vercel environment variables.";
+  } else if (tursoError) {
+    detail = `Turso error: ${tursoError}`;
   }
 
   return {
     provider: "Local Vault",
     type: "local",
     status: "local",
-    message: "Using browser local storage & local SQLite fallback.",
+    message: detail,
+    hasNeonEnv: Boolean(neonUrl),
+    hasTursoEnv: Boolean(tursoUrl),
     color: "#F59E0B"
   };
 }
