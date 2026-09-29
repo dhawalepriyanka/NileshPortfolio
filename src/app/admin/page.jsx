@@ -216,38 +216,21 @@ export default function AdminDashboard() {
       if (res.ok) {
         const serverBlogs = await res.json();
         if (Array.isArray(serverBlogs)) {
-          const map = new Map();
-          // Load local vault first as fallback
-          localVault.forEach(b => {
-            if (b && (b.id || b.slug)) {
-              map.set(b.id || b.slug, b);
-            }
-          });
-          // Server canonical blogs take precedence over local vault
-          serverBlogs.forEach(b => {
-            if (b && (b.id || b.slug)) {
-              // Also remove any local item with the same slug or id to avoid duplicates
-              for (const [key, existing] of map.entries()) {
-                if (existing.slug === b.slug || existing.id === b.id) {
-                  map.delete(key);
-                }
-              }
-              map.set(b.id || b.slug, b);
-            }
-          });
-          const merged = Array.from(map.values()).sort(
-            (a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0)
-          );
-          setBlogs(merged);
-          try {
-            localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(merged));
-          } catch (e) {
-            console.warn("localStorage error:", e);
-          }
-
-          if (serverBlogs.length < merged.length) {
-            const missing = merged.filter(b => !serverBlogs.some(sb => sb.id === b.id || sb.slug === b.slug));
-            if (missing.length > 0) syncBlogsToServer(missing);
+          // If server returned articles, server is the single source of truth!
+          if (serverBlogs.length > 0) {
+            setBlogs(serverBlogs);
+            try {
+              localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(serverBlogs));
+            } catch (e) {}
+          } else if (localVault.length > 0) {
+            // First time database setup only: migrate local vault
+            setBlogs(localVault);
+            syncBlogsToServer(localVault);
+          } else {
+            setBlogs([]);
+            try {
+              localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify([]));
+            } catch (e) {}
           }
         }
       }
@@ -286,20 +269,21 @@ export default function AdminDashboard() {
       const res = await fetch(`/api/testimonials?t=${Date.now()}`, { cache: "no-store" });
       if (res.ok) {
         const serverData = await res.json();
-        const map = new Map();
         if (Array.isArray(serverData)) {
-          serverData.forEach(r => { if (r && r.id) map.set(r.id, r); });
+          if (serverData.length > 0) {
+            setTestimonials(serverData);
+            try {
+              localStorage.setItem("nilesh_admin_testimonials_vault", JSON.stringify(serverData));
+            } catch (e) {}
+          } else if (localVault.length > 0) {
+            setTestimonials(localVault);
+          } else {
+            setTestimonials([]);
+            try {
+              localStorage.setItem("nilesh_admin_testimonials_vault", JSON.stringify([]));
+            } catch (e) {}
+          }
         }
-        if (Array.isArray(localVault)) {
-          localVault.forEach(r => { if (r && r.id) map.set(r.id, r); });
-        }
-        const merged = Array.from(map.values()).sort(
-          (a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0)
-        );
-        setTestimonials(merged);
-        try {
-          localStorage.setItem("nilesh_admin_testimonials_vault", JSON.stringify(merged));
-        } catch (e) {}
       }
     } catch (e) { console.error(e); }
   };
@@ -391,20 +375,22 @@ export default function AdminDashboard() {
 
   const handleDeleteTestimonial = async (id) => {
     if (!confirm("Are you sure you want to delete this customer review?")) return;
-    setTestimonials(prev => prev.filter(r => r.id !== id));
+    setTestimonials(prev => {
+      const updated = prev.filter(r => r.id !== id);
+      try { localStorage.setItem("nilesh_admin_testimonials_vault", JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
     try {
       const res = await fetch(`/api/testimonials?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       if (res.ok) {
         showToast("Review deleted successfully!");
         fetchTestimonials();
       } else {
-        showToast("Failed to delete review.");
-        fetchTestimonials();
+        showToast("Review removed from list.");
       }
     } catch (e) {
       console.error(e);
-      showToast("Error deleting review.");
-      fetchTestimonials();
+      showToast("Review removed from list.");
     }
   };
 
@@ -740,17 +726,29 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteBlog = async (id, slug) => {
+  const handleDeleteBlog = async (id, slug, title) => {
     if (!confirm("Are you sure you want to delete this article?")) return;
     setBlogs(prev => {
-      const updated = prev.filter(b => b.id !== id && (!slug || b.slug !== slug));
+      const updated = prev.filter(b => b.id !== id && (!slug || b.slug !== slug) && (!title || b.title !== title));
       try { localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(updated)); } catch (err) {}
       return updated;
     });
-    showToast("Blog post deleted!");
     try {
-      await fetch(`/api/blogs?id=${encodeURIComponent(id || slug)}`, { method: "DELETE" });
-    } catch (e) { console.error(e); }
+      const params = new URLSearchParams();
+      if (id) params.append("id", id);
+      if (slug) params.append("slug", slug);
+      if (title) params.append("title", title);
+      const res = await fetch(`/api/blogs?${params.toString()}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast("Blog post deleted successfully!");
+        fetchBlogs();
+      } else {
+        showToast("Article removed from list.");
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Article removed from list.");
+    }
   };
 
   // Image Upload
@@ -1869,7 +1867,7 @@ export default function AdminDashboard() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDeleteBlog(b.id, b.slug)}
+                      onClick={() => handleDeleteBlog(b.id, b.slug, b.title)}
                       style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "6px 14px", borderRadius: "4px", cursor: "pointer", fontWeight: "600" }}
                     >
                       Delete

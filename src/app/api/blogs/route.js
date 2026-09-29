@@ -58,11 +58,15 @@ export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-    if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
+    const slug = searchParams.get("slug");
+    const title = searchParams.get("title");
+    if (!id && !slug && !title) return NextResponse.json({ error: "ID, slug, or title required" }, { status: 400 });
 
-    await deleteBlog(id);
+    await deleteBlog(id, slug, title);
     revalidatePath("/", "layout");
     revalidatePath("/blog");
+    if (slug) revalidatePath(`/blog/${slug}`);
+    if (id && id !== slug) revalidatePath(`/blog/${id}`);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting blog:", error);
