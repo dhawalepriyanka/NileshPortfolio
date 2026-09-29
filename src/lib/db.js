@@ -1177,16 +1177,23 @@ export async function updateBlog(id, data) {
 }
 
 export async function deleteBlog(id, slug = null, title = null) {
+  const targetId = id && id !== "undefined" && id !== "null" ? id : null;
+  const targetSlug = slug && slug !== "undefined" && slug !== "null" ? slug : null;
+  const targetTitle = title && title !== "undefined" && title !== "null" ? title : null;
+
   const neon = getNeonClient();
   if (neon && !neonDisabled) {
     try {
       await ensureNeonInit(neon);
-      await neon`
-        DELETE FROM "Blog" 
-        WHERE id = ${id} 
-           OR (slug IS NOT NULL AND slug = ${slug || id})
-           OR (title IS NOT NULL AND title = ${title || id})
-      `;
+      if (targetId) {
+        await neon`DELETE FROM "Blog" WHERE id = ${targetId} OR slug = ${targetId} OR title = ${targetId}`;
+      }
+      if (targetSlug && targetSlug !== targetId) {
+        await neon`DELETE FROM "Blog" WHERE slug = ${targetSlug} OR id = ${targetSlug} OR title = ${targetSlug}`;
+      }
+      if (targetTitle && targetTitle !== targetId && targetTitle !== targetSlug) {
+        await neon`DELETE FROM "Blog" WHERE title = ${targetTitle} OR slug = ${targetTitle}`;
+      }
       return;
     } catch (err) {
       console.warn("Neon deleteBlog error:", err.message);
@@ -1197,10 +1204,24 @@ export async function deleteBlog(id, slug = null, title = null) {
   if (turso && !tursoDisabled) {
     try {
       await ensureTursoInit(turso);
-      await turso.execute({
-        sql: "DELETE FROM Blog WHERE id = ? OR (slug IS NOT NULL AND slug = ?) OR (title IS NOT NULL AND title = ?)",
-        args: cleanArgs([id, slug || id, title || id]),
-      });
+      if (targetId) {
+        await turso.execute({
+          sql: "DELETE FROM Blog WHERE id = ? OR slug = ? OR title = ?",
+          args: cleanArgs([targetId, targetId, targetId])
+        });
+      }
+      if (targetSlug && targetSlug !== targetId) {
+        await turso.execute({
+          sql: "DELETE FROM Blog WHERE slug = ? OR id = ? OR title = ?",
+          args: cleanArgs([targetSlug, targetSlug, targetSlug])
+        });
+      }
+      if (targetTitle && targetTitle !== targetId && targetTitle !== targetSlug) {
+        await turso.execute({
+          sql: "DELETE FROM Blog WHERE title = ? OR slug = ?",
+          args: cleanArgs([targetTitle, targetTitle])
+        });
+      }
       return;
     } catch (err) {
       console.warn("Turso deleteBlog error:", err.message);
@@ -1209,7 +1230,15 @@ export async function deleteBlog(id, slug = null, title = null) {
 
   try {
     const database = getDb();
-    database.prepare("DELETE FROM Blog WHERE id = ? OR (slug IS NOT NULL AND slug = ?) OR (title IS NOT NULL AND title = ?)").run(id, slug || id, title || id);
+    if (targetId) {
+      database.prepare("DELETE FROM Blog WHERE id = ? OR slug = ? OR title = ?").run(targetId, targetId, targetId);
+    }
+    if (targetSlug && targetSlug !== targetId) {
+      database.prepare("DELETE FROM Blog WHERE slug = ? OR id = ? OR title = ?").run(targetSlug, targetSlug, targetSlug);
+    }
+    if (targetTitle && targetTitle !== targetId && targetTitle !== targetSlug) {
+      database.prepare("DELETE FROM Blog WHERE title = ? OR slug = ?").run(targetTitle, targetTitle);
+    }
   } catch (err) {}
 }
 

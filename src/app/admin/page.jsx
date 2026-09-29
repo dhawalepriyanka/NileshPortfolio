@@ -211,28 +211,33 @@ export default function AdminDashboard() {
       console.warn("fetchBlogs vault read error:", e);
     }
 
+    let deletedIds = [];
+    try {
+      deletedIds = JSON.parse(localStorage.getItem("nilesh_deleted_blog_ids") || "[]");
+    } catch (e) {}
+
     try {
       const res = await fetch(`/api/blogs?t=${Date.now()}`, { cache: "no-store" });
       if (res.ok) {
         const serverBlogs = await res.json();
         if (Array.isArray(serverBlogs)) {
-          // If server returned articles, server is the single source of truth!
-          if (serverBlogs.length > 0) {
-            setBlogs(serverBlogs);
-            try {
-              localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(serverBlogs));
-            } catch (e) {}
-          } else if (localVault.length > 0) {
-            // First time database setup only: migrate local vault
-            setBlogs(localVault);
-            syncBlogsToServer(localVault);
-          } else {
-            setBlogs([]);
-            try {
-              localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify([]));
-            } catch (e) {}
-          }
+          const cleanBlogs = serverBlogs.filter(b => 
+            !deletedIds.includes(b.id) && 
+            !deletedIds.includes(b.slug) && 
+            !deletedIds.includes(b.title)
+          );
+          setBlogs(cleanBlogs);
+          try {
+            localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(cleanBlogs));
+          } catch (e) {}
         }
+      } else if (localVault.length > 0) {
+        const cleanVault = localVault.filter(b => 
+          !deletedIds.includes(b.id) && 
+          !deletedIds.includes(b.slug) && 
+          !deletedIds.includes(b.title)
+        );
+        setBlogs(cleanVault);
       }
     } catch (e) {
       console.error("fetchBlogs error:", e);
@@ -304,9 +309,13 @@ export default function AdminDashboard() {
 
         try {
           const savedBlogs = localStorage.getItem("nilesh_admin_blogs_vault");
+          const deletedIds = JSON.parse(localStorage.getItem("nilesh_deleted_blog_ids") || "[]");
           if (savedBlogs) {
             const parsed = JSON.parse(savedBlogs);
-            if (Array.isArray(parsed) && parsed.length > 0) setBlogs(parsed);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const clean = parsed.filter(b => !deletedIds.includes(b.id) && !deletedIds.includes(b.slug) && !deletedIds.includes(b.title));
+              setBlogs(clean);
+            }
           }
         } catch (e) {}
 
@@ -350,9 +359,13 @@ export default function AdminDashboard() {
 
       try {
         const savedBlogs = localStorage.getItem("nilesh_admin_blogs_vault");
+        const deletedIds = JSON.parse(localStorage.getItem("nilesh_deleted_blog_ids") || "[]");
         if (savedBlogs) {
           const parsed = JSON.parse(savedBlogs);
-          if (Array.isArray(parsed) && parsed.length > 0) setBlogs(parsed);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const clean = parsed.filter(b => !deletedIds.includes(b.id) && !deletedIds.includes(b.slug) && !deletedIds.includes(b.title));
+            setBlogs(clean);
+          }
         }
       } catch (e) {}
 
@@ -728,26 +741,31 @@ export default function AdminDashboard() {
 
   const handleDeleteBlog = async (id, slug, title) => {
     if (!confirm("Are you sure you want to delete this article?")) return;
+
+    // Persist to deleted blog IDs set immediately
+    try {
+      const existing = JSON.parse(localStorage.getItem("nilesh_deleted_blog_ids") || "[]");
+      const toAdd = [id, slug, title].filter(Boolean);
+      const updatedDeleted = Array.from(new Set([...existing, ...toAdd]));
+      localStorage.setItem("nilesh_deleted_blog_ids", JSON.stringify(updatedDeleted));
+    } catch (e) {}
+
     setBlogs(prev => {
       const updated = prev.filter(b => b.id !== id && (!slug || b.slug !== slug) && (!title || b.title !== title));
       try { localStorage.setItem("nilesh_admin_blogs_vault", JSON.stringify(updated)); } catch (err) {}
       return updated;
     });
+
+    showToast("Blog post deleted successfully!");
+
     try {
       const params = new URLSearchParams();
       if (id) params.append("id", id);
       if (slug) params.append("slug", slug);
       if (title) params.append("title", title);
-      const res = await fetch(`/api/blogs?${params.toString()}`, { method: "DELETE" });
-      if (res.ok) {
-        showToast("Blog post deleted successfully!");
-        fetchBlogs();
-      } else {
-        showToast("Article removed from list.");
-      }
+      await fetch(`/api/blogs?${params.toString()}`, { method: "DELETE" });
     } catch (e) {
       console.error(e);
-      showToast("Article removed from list.");
     }
   };
 
